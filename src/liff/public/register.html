@@ -48,15 +48,12 @@
           return;
         }
 
-        await liff.init({ liffId: config.liffId });
+        await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
         console.log('LIFF init success, isInClient:', liff.isInClient(), 'isLoggedIn:', liff.isLoggedIn());
 
         if (!liff.isLoggedIn()) {
-          if (!liff.isInClient()) {
-            liff.login({ redirectUri: window.location.href });
-          } else {
-            showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ผ่าน LINE อีกครั้ง');
-          }
+          // withLoginOnExternalBrowser จะ auto redirect ไป login
+          // ถ้ายังไม่ login แสดงว่ากำลัง redirect อยู่
           return;
         }
 

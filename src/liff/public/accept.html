@@ -104,14 +104,9 @@
 
     async function init() {
       const config = await fetch('/api/config').then(r => r.json());
-      await liff.init({ liffId: config.liffId });
+      await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
 
       if (!liff.isLoggedIn()) {
-        if (!liff.isInClient()) {
-          liff.login({ redirectUri: window.location.href });
-        } else {
-          showError('ไม่สามารถ login ได้ กรุณาเปิดผ่าน LINE');
-        }
         return;
       }
 
