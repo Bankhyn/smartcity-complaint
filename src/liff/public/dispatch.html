@@ -8,131 +8,84 @@
 </head>
 <body>
   <div class="container">
-    <h1>📋 เลือกงานออกปฏิบัติงาน</h1>
+    <h1>🚗 เลือกงานออกปฏิบัติงาน</h1>
     <p id="deptName" style="text-align:center;color:#2196F3;font-weight:bold;margin-bottom:12px;"></p>
-    <div id="taskList" class="task-list">
-      <p class="loading">กำลังโหลด...</p>
-    </div>
-    <button id="dispatchBtn" class="btn btn-primary hidden" onclick="doDispatch()">
+    <div id="taskList" class="task-list"><p class="loading">กำลังตรวจสอบ...</p></div>
+    <button id="dispatchBtn" class="btn btn-primary hidden" type="button" onclick="doDispatch()">
       ✅ รับงานที่เลือก (<span id="selectedCount">0</span> งาน)
     </button>
     <div id="result" class="result hidden"></div>
   </div>
-
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
+    const token = new URLSearchParams(window.location.search).get('t') || '';
+    const H = { 'ngrok-skip-browser-warning': '1' };
     let officerId = null;
     let tasks = [];
 
     async function init() {
       try {
-        const config = await fetch('/api/config').then(r => r.json());
-        await liff.init({ liffId: config.liffId });
-
-        if (!liff.isLoggedIn()) {
-          if (!sessionStorage.getItem('liff_logging_in')) {
-            sessionStorage.setItem('liff_logging_in', '1');
-            liff.login();
-            return;
-          }
-          sessionStorage.removeItem('liff_logging_in');
-          showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ใหม่ผ่านแชท LINE');
-          return;
+        const authRes = await fetch(`/api/auth/verify?token=${token}`, { headers: H });
+        const auth = await authRes.json();
+        if (!auth.success || !auth.officerId) {
+          showError(auth.error || 'ลิงก์หมดอายุ กรุณาพิมพ์ /ppnr ใหม่'); return;
         }
-        sessionStorage.removeItem('liff_logging_in');
+        officerId = auth.officerId;
 
-        // ดึง officer จาก LINE profile
-        const profile = await liff.getProfile();
-        const officerRes = await fetch(`/api/officers/${profile.userId}`);
-        if (!officerRes.ok) {
-          showError('กรุณาลงทะเบียนก่อน พิมพ์ /ลงทะเบียน ในกลุ่ม');
-          return;
-        }
-        const officer = await officerRes.json();
-        officerId = officer.id;
-
-        // แสดงชื่อกอง
-        const deptRes = await fetch('/api/officers/departments/list');
-        if (deptRes.ok) {
+        const deptRes = await fetch('/api/officers/departments/list', { headers: H });
+        const officerRes = await fetch(`/api/officers/by-id/${officerId}`, { headers: H });
+        if (deptRes.ok && officerRes.ok) {
+          const officer = await officerRes.json();
           const depts = await deptRes.json();
           const dept = depts.find(d => d.id === officer.departmentId);
           if (dept) document.getElementById('deptName').textContent = `🏢 ${dept.name}`;
         }
-
-        // โหลดเฉพาะงานของกองนี้
-        const res = await fetch(`/api/tasks/pending/${officerId}`);
+        const res = await fetch(`/api/tasks/pending/${officerId}`, { headers: H });
         tasks = await res.json();
         renderTasks();
-      } catch (err) {
-        showError('เกิดข้อผิดพลาด: ' + err.message);
-      }
+      } catch (err) { showError('เกิดข้อผิดพลาด: ' + err.message); }
     }
 
     function showError(msg) {
-      document.getElementById('taskList').innerHTML = `<p class="error" style="color:#C62828;text-align:center;padding:20px;">${msg}</p>`;
+      document.getElementById('taskList').innerHTML = `<p style="color:#C62828;text-align:center;padding:20px;">${msg}</p>`;
     }
-
     function renderTasks() {
-      const container = document.getElementById('taskList');
-      if (tasks.length === 0) {
-        container.innerHTML = '<p class="empty">ไม่มีงานรอดำเนินการ ✨</p>';
-        return;
-      }
-
-      container.innerHTML = tasks.map(t => `
+      const c = document.getElementById('taskList');
+      if (tasks.length === 0) { c.innerHTML = '<p class="empty">ไม่มีงานรอดำเนินการ ✨</p>'; return; }
+      c.innerHTML = tasks.map(t => `
         <label class="task-card">
           <input type="checkbox" value="${t.id}" onchange="updateCount()">
           <div class="task-info">
             <div class="task-ref">${t.refId}</div>
             <div class="task-issue">${t.issue}</div>
             <div class="task-location">📍 ${t.location || '-'}</div>
-            <div class="task-contact">👤 ${t.contactName || '-'} ${t.contactPhone ? '📞 ' + t.contactPhone : ''}</div>
+            <div class="task-contact">👤 ${t.contactName || '-'} ${t.contactPhone ? '📞 '+t.contactPhone : ''}</div>
           </div>
-        </label>
-      `).join('');
-
+        </label>`).join('');
       document.getElementById('dispatchBtn').classList.remove('hidden');
     }
-
     function updateCount() {
-      const checked = document.querySelectorAll('.task-card input:checked').length;
-      document.getElementById('selectedCount').textContent = checked;
+      document.getElementById('selectedCount').textContent = document.querySelectorAll('.task-card input:checked').length;
     }
-
     async function doDispatch() {
-      const checked = Array.from(document.querySelectorAll('.task-card input:checked'));
-      const complaintIds = checked.map(el => Number(el.value));
-
-      if (complaintIds.length === 0) {
-        alert('กรุณาเลือกอย่างน้อย 1 งาน');
-        return;
-      }
-
+      const ids = Array.from(document.querySelectorAll('.task-card input:checked')).map(el => Number(el.value));
+      if (ids.length === 0) { alert('กรุณาเลือกอย่างน้อย 1 งาน'); return; }
       const btn = document.getElementById('dispatchBtn');
-      btn.disabled = true;
-      btn.textContent = 'กำลังส่ง...';
-
+      btn.disabled = true; btn.textContent = 'กำลังส่ง...';
       const res = await fetch('/api/tasks/dispatch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ officerId: Number(officerId), complaintIds }),
+        method:'POST', headers:{'Content-Type':'application/json', ...H},
+        body: JSON.stringify({ officerId: Number(officerId), complaintIds: ids }),
       });
       const data = await res.json();
-
       const result = document.getElementById('result');
       result.classList.remove('hidden');
       if (data.success) {
         result.innerHTML = `✅ รับงาน ${data.dispatched.length} งานเรียบร้อย!<br>${data.dispatched.join(', ')}`;
         result.className = 'result success';
-        setTimeout(() => { if (liff.isInClient()) liff.closeWindow(); }, 2000);
       } else {
         result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
-        result.className = 'result error';
-        btn.disabled = false;
-        btn.textContent = '✅ รับงานที่เลือก';
+        result.className = 'result error'; btn.disabled = false; btn.textContent = '✅ รับงานที่เลือก';
       }
     }
-
     init();
   </script>
 </body>

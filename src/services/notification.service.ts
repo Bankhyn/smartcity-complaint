@@ -1,7 +1,7 @@
 import { env } from '../config/env.js';
 import { db, schema } from '../db/index.js';
 import { eq } from 'drizzle-orm';
-import { complaintCardFlex, complaintNotifyFlex, departmentSelectFlex, resultNotifyFlex, dispatchNotifyFlex } from '../flex-messages/complaint-card.js';
+import { complaintCardFlex, complaintNotifyFlex, departmentSelectFlex, resultNotifyFlex, dispatchNotifyFlex, acceptNotifyFlex } from '../flex-messages/complaint-card.js';
 import { lineAdapter } from '../adapters/line.adapter.js';
 import { facebookAdapter } from '../adapters/facebook.adapter.js';
 import { imageService } from './image.service.js';
@@ -21,7 +21,7 @@ export const notificationService = {
         ...complaint,
         photoUrl: complaint.photoUrl ? imageService.getFullUrl(complaint.photoUrl) : null,
       };
-      const cardFlex = complaintCardFlex(complaintWithFullPhoto, department.name, complaint.platform, env.liffId);
+      const cardFlex = complaintCardFlex(complaintWithFullPhoto, department.name, complaint.platform);
       await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
     }
   },
@@ -33,7 +33,7 @@ export const notificationService = {
         ...complaint,
         photoUrl: complaint.photoUrl ? imageService.getFullUrl(complaint.photoUrl) : null,
       };
-      const cardFlex = complaintCardFlex(complaintWithFullPhoto, newDepartment.name, complaint.platform, env.liffId);
+      const cardFlex = complaintCardFlex(complaintWithFullPhoto, newDepartment.name, complaint.platform);
       await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
     }
 
@@ -49,6 +49,26 @@ export const notificationService = {
     const deptList = departments.map(d => ({ code: d.code, name: d.name }));
     const flex = departmentSelectFlex(complaintRefId, deptList);
     await lineAdapter.pushFlexMessage(groupId, flex);
+  },
+
+  async notifyAccepted(complaint: any) {
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, complaint.userId));
+    if (!user) return;
+
+    // ดึงชื่อกอง
+    let departmentName = 'เทศบาลพลับพลานารายณ์';
+    if (complaint.departmentId) {
+      const [dept] = await db.select().from(schema.departments).where(eq(schema.departments.id, complaint.departmentId));
+      if (dept) departmentName = dept.name;
+    }
+
+    if (user.lineUserId) {
+      const flex = acceptNotifyFlex(complaint, departmentName);
+      await lineAdapter.pushFlexMessage(user.lineUserId, flex);
+    } else if (user.facebookPsid) {
+      await facebookAdapter.sendText(user.facebookPsid,
+        `🔔 แจ้งเตือนจากเทศบาลพลับพลานารายณ์\n\nคำร้อง: ${complaint.refId}\nเรื่อง: ${complaint.issue}\n\n✅ เจ้าหน้าที่รับเรื่องแล้วค่ะ\nกอง: ${departmentName}\n\nเราจะแจ้งความคืบหน้าให้ทราบอีกครั้งนะคะ 🙏`);
+    }
   },
 
   async notifyDispatch(complaint: any, officer: any) {
@@ -68,8 +88,14 @@ export const notificationService = {
     const [user] = await db.select().from(schema.users).where(eq(schema.users.id, complaint.userId));
     if (!user) return;
 
+    // แปลง resultPhotoUrl เป็น full URL
+    const complaintWithFullPhoto = {
+      ...complaint,
+      resultPhotoUrl: complaint.resultPhotoUrl ? imageService.getFullUrl(complaint.resultPhotoUrl) : null,
+    };
+
     if (user.lineUserId) {
-      const flex = resultNotifyFlex(complaint);
+      const flex = resultNotifyFlex(complaintWithFullPhoto);
       await lineAdapter.pushFlexMessage(user.lineUserId, flex);
     } else if (user.facebookPsid) {
       const statusText = complaint.resultStatus === 'completed' ? '✅ ดำเนินการสำเร็จ'

@@ -87,12 +87,22 @@ export const lineAdapter = {
 
   // Push text to user or group
   async pushText(to: string, text: string) {
-    await client.pushMessage({ to, messages: [{ type: 'text', text }] });
+    try {
+      await client.pushMessage({ to, messages: [{ type: 'text', text }] });
+    } catch (e: any) {
+      console.error(`[LINE push] Failed to send text to ${to}:`, e?.message || e);
+      throw e;
+    }
   },
 
   // Push Flex Message
   async pushFlexMessage(to: string, flexMsg: any) {
-    await client.pushMessage({ to, messages: [flexMsg] });
+    try {
+      await client.pushMessage({ to, messages: [flexMsg] });
+    } catch (e: any) {
+      console.error(`[LINE push] Failed to send flex to ${to}:`, e?.message || e);
+      throw e;
+    }
   },
 
   // Get user profile

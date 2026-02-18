@@ -56,8 +56,6 @@ export const imageService = {
   getFullUrl(path: string): string {
     if (!path) return '';
     if (path.startsWith('http')) return path;
-    // ใช้ Render URL หรือ localhost
-    const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${env.port}`;
-    return `${baseUrl}${path}`;
+    return `${env.baseUrl}${path}`;
   },
 };

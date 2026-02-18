@@ -88,7 +88,7 @@
         <textarea id="note" rows="2" placeholder="เช่น ให้ช่างไฟไปดู, ต้องประสานงานกับการไฟฟ้า..."></textarea>
       </div>
 
-      <button id="acceptBtn" class="btn btn-primary" onclick="acceptComplaint()">
+      <button id="acceptBtn" class="btn btn-primary" type="button" onclick="acceptComplaint()">
         ✅ รับเรื่อง
       </button>
     </div>
@@ -96,76 +96,59 @@
     <div id="result" class="result hidden"></div>
   </div>
 
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    let refId = null;
+    const params = new URLSearchParams(window.location.search);
+    const refId = params.get('ref');
+    const lineUserId = params.get('uid') || 'unknown';
+    const H = { 'ngrok-skip-browser-warning': '1' };
     let complaint = null;
-    let lineUserId = null;
 
     async function init() {
-      const config = await fetch('/api/config').then(r => r.json());
-      await liff.init({ liffId: config.liffId });
-
-      if (!liff.isLoggedIn()) {
-        if (!sessionStorage.getItem('liff_logging_in')) {
-          sessionStorage.setItem('liff_logging_in', '1');
-          liff.login();
-          return;
-        }
-        sessionStorage.removeItem('liff_logging_in');
-        showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ใหม่ผ่านแชท LINE');
-        return;
-      }
-      sessionStorage.removeItem('liff_logging_in');
-
-      const profile = await liff.getProfile();
-      lineUserId = profile.userId;
-
-      // ดึง refId จาก URL
-      const params = new URLSearchParams(window.location.search);
-      refId = params.get('ref');
-
       if (!refId) {
         showError('ไม่พบข้อมูลคำร้อง');
         return;
       }
 
-      // โหลดข้อมูลคำร้อง
-      const res = await fetch(`/api/tasks/complaint/${encodeURIComponent(refId)}`);
-      if (!res.ok) {
-        showError('ไม่พบคำร้อง ' + refId);
-        return;
-      }
-      complaint = await res.json();
-
-      if (complaint.status !== 'pending') {
-        showError('คำร้องนี้ถูกรับเรื่องแล้ว');
-        return;
-      }
-
-      // แสดงข้อมูลคำร้อง
-      renderComplaint();
-
-      // โหลดรายชื่อเจ้าหน้าที่ในกอง
-      if (complaint.departmentId) {
-        const officersRes = await fetch(`/api/officers/by-department/${complaint.departmentId}`);
-        if (officersRes.ok) {
-          const officers = await officersRes.json();
-          const select = document.getElementById('officer');
-          officers.forEach(o => {
-            const opt = document.createElement('option');
-            opt.value = o.id;
-            opt.textContent = `${o.name}${o.position ? ' (' + o.position + ')' : ''} - ${o.phone}`;
-            select.appendChild(opt);
-          });
+      try {
+        // โหลดข้อมูลคำร้อง
+        const res = await fetch(`/api/tasks/complaint/${encodeURIComponent(refId)}`, { headers: H });
+        if (!res.ok) {
+          showError('ไม่พบคำร้อง ' + refId);
+          return;
         }
+        complaint = await res.json();
+
+        if (complaint.status !== 'pending') {
+          showError('คำร้องนี้ถูกรับเรื่องแล้ว');
+          return;
+        }
+
+        // แสดงข้อมูลคำร้อง
+        renderComplaint();
+
+        // โหลดรายชื่อเจ้าหน้าที่ในกอง
+        if (complaint.departmentId) {
+          const officersRes = await fetch(`/api/officers/by-department/${complaint.departmentId}`, { headers: H });
+          if (officersRes.ok) {
+            const officers = await officersRes.json();
+            const select = document.getElementById('officer');
+            officers.forEach(o => {
+              const opt = document.createElement('option');
+              opt.value = o.id;
+              opt.textContent = `${o.name}${o.position ? ' (' + o.position + ')' : ''} - ${o.phone}`;
+              select.appendChild(opt);
+            });
+          }
+        }
+
+        // ตั้งวันที่เริ่มต้นเป็นวันนี้
+        document.getElementById('scheduledDate').value = new Date().toISOString().slice(0, 10);
+
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+      } catch (err) {
+        showError('เกิดข้อผิดพลาด: ' + err.message);
       }
-
-      // ตั้งวันที่เริ่มต้นเป็นวันนี้
-      document.getElementById('scheduledDate').value = new Date().toISOString().slice(0, 10);
-
-      document.getElementById('loading').classList.add('hidden');
-      document.getElementById('content').classList.remove('hidden');
     }
 
     function renderComplaint() {
@@ -195,33 +178,36 @@
       const scheduledDate = document.getElementById('scheduledDate').value;
       const note = document.getElementById('note').value;
 
-      const res = await fetch('/api/tasks/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          refId,
-          acceptedBy: lineUserId,
-          assignedOfficerId: officerId ? Number(officerId) : undefined,
-          scheduledDate: scheduledDate || undefined,
-          acceptNote: note || undefined,
-        }),
-      });
-      const data = await res.json();
+      try {
+        const res = await fetch('/api/tasks/accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...H },
+          body: JSON.stringify({
+            refId,
+            acceptedBy: lineUserId,
+            assignedOfficerId: officerId ? Number(officerId) : undefined,
+            scheduledDate: scheduledDate || undefined,
+            acceptNote: note || undefined,
+          }),
+        });
+        const data = await res.json();
 
-      const result = document.getElementById('result');
-      result.classList.remove('hidden');
-      document.getElementById('content').classList.add('hidden');
+        const result = document.getElementById('result');
+        result.classList.remove('hidden');
+        document.getElementById('content').classList.add('hidden');
 
-      if (data.success) {
-        result.innerHTML = `✅ รับเรื่อง ${refId} เรียบร้อย!`;
-        result.className = 'result success';
-        setTimeout(() => { if (liff.isInClient()) liff.closeWindow(); }, 2000);
-      } else {
-        result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
-        result.className = 'result error';
-        btn.disabled = false;
-        btn.textContent = '✅ รับเรื่อง';
-        document.getElementById('content').classList.remove('hidden');
+        if (data.success) {
+          result.innerHTML = `✅ รับเรื่อง ${refId} เรียบร้อย!`;
+          result.className = 'result success';
+        } else {
+          result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
+          result.className = 'result error';
+          btn.disabled = false;
+          btn.textContent = '✅ รับเรื่อง';
+          document.getElementById('content').classList.remove('hidden');
+        }
+      } catch (err) {
+        showError('เกิดข้อผิดพลาด: ' + err.message);
       }
     }
 

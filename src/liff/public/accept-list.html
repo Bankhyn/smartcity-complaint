@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รับงาน</title>
+  <link rel="stylesheet" href="/liff/css/style.css">
+  <style>
+    .task-card.clickable { cursor:pointer; transition:transform .1s; }
+    .task-card.clickable:active { transform:scale(0.98); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📋 รับงาน (คำร้องรอรับเรื่อง)</h1>
+    <p id="deptName" style="text-align:center;color:#2196F3;font-weight:bold;margin-bottom:12px;"></p>
+    <div id="taskList" class="task-list"><p class="loading">กำลังตรวจสอบ...</p></div>
+    <div id="result" class="result hidden"></div>
+  </div>
+  <script>
+    const token = new URLSearchParams(window.location.search).get('t') || '';
+    const H = { 'ngrok-skip-browser-warning': '1' };
+    let officerId = null;
+    let lineUserId = '';
+    let tasks = [];
+
+    async function init() {
+      try {
+        const authRes = await fetch(`/api/auth/verify?token=${token}`, { headers: H });
+        const auth = await authRes.json();
+        if (!auth.success || !auth.officerId) {
+          showError(auth.error || 'ลิงก์หมดอายุ กรุณาพิมพ์ /ppnr ใหม่'); return;
+        }
+        officerId = auth.officerId;
+        lineUserId = auth.lineUserId;
+
+        const officerRes = await fetch(`/api/officers/by-id/${officerId}`, { headers: H });
+        if (officerRes.ok) {
+          const officer = await officerRes.json();
+          const deptRes = await fetch('/api/officers/departments/list', { headers: H });
+          if (deptRes.ok) {
+            const depts = await deptRes.json();
+            const dept = depts.find(d => d.id === officer.departmentId);
+            if (dept) document.getElementById('deptName').textContent = `🏢 ${dept.name}`;
+          }
+        }
+        const res = await fetch(`/api/tasks/pending-accept/${officerId}`, { headers: H });
+        tasks = await res.json();
+        renderTasks();
+      } catch (err) { showError('เกิดข้อผิดพลาด: ' + err.message); }
+    }
+
+    function showError(msg) {
+      document.getElementById('taskList').innerHTML = `<p style="color:#C62828;text-align:center;padding:20px;">${msg}</p>`;
+    }
+    function renderTasks() {
+      const c = document.getElementById('taskList');
+      if (tasks.length === 0) { c.innerHTML = '<p class="empty">ไม่มีคำร้องรอรับเรื่อง ✨</p>'; return; }
+      c.innerHTML = `<p style="text-align:center;color:#666;margin-bottom:12px;">พบ ${tasks.length} คำร้อง — กดเลือกเพื่อรับเรื่อง</p>` +
+        tasks.map(t => {
+          const date = new Date(t.createdAt).toLocaleDateString('th-TH',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+          return `
+          <div class="task-card clickable" onclick="openAccept('${t.refId}')">
+            <div class="task-info">
+              <div class="task-ref">${t.refId} <span style="float:right;color:#999;font-size:0.8rem;">${date}</span></div>
+              <div class="task-issue">${t.issue}</div>
+              <div class="task-location">📍 ${t.location || '-'}</div>
+              <div class="task-contact">👤 ${t.contactName || '-'} ${t.contactPhone ? '📞 '+t.contactPhone : ''}</div>
+            </div>
+          </div>`;
+        }).join('');
+    }
+    function openAccept(refId) {
+      // ส่ง uid ไปด้วยสำหรับ accept.html
+      window.location.href = `/liff/accept.html?ref=${refId}&uid=${lineUserId}`;
+    }
+    init();
+  </script>
+</body>
+</html>

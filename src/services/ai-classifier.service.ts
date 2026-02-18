@@ -1,9 +1,15 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import Anthropic from '@anthropic-ai/sdk';
 import { env } from '../config/env.js';
 import { db, schema } from '../db/index.js';
 import { eq } from 'drizzle-orm';
 import type { ClassificationResult, DepartmentCode } from '../types/index.js';
 
+const genAI = new GoogleGenerativeAI(env.googleAiApiKey);
+const geminiModel = genAI.getGenerativeModel({
+  model: 'gemini-2.0-flash',
+  generationConfig: { responseMimeType: 'application/json' },
+});
 const anthropic = new Anthropic({ apiKey: env.anthropicApiKey });
 
 async function getCorrections(): Promise<string> {
@@ -35,13 +41,7 @@ export const aiClassifier = {
     const departmentInfo = await getDepartmentInfo();
     const corrections = await getCorrections();
 
-    try {
-      const message = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 300,
-        messages: [{
-          role: 'user',
-          content: `คุณเป็นระบบจัดหมวดหมู่เรื่องร้องเรียนของเทศบาลตำบลพลับพลานารายณ์
+    const prompt = `คุณเป็นระบบจัดหมวดหมู่เรื่องร้องเรียนของเทศบาลตำบลพลับพลานารายณ์
 
 ## กองที่มี:
 ${departmentInfo}
@@ -51,11 +51,24 @@ ${corrections}
 "${issueText}"
 
 ## ตอบเป็น JSON เท่านั้น:
-{"department": "รหัสกอง", "confidence": 0.0-1.0, "summary": "สรุปสั้น", "category": "หมวด"}`,
-        }],
-      });
+{"department": "รหัสกอง", "confidence": 0.0-1.0, "summary": "สรุปสั้น", "category": "หมวด"}`;
 
-      const text = message.content[0].type === 'text' ? message.content[0].text : '';
+    try {
+      // ลอง Gemini ก่อน
+      let text = '';
+      try {
+        const result = await geminiModel.generateContent(prompt);
+        text = result.response.text();
+      } catch (geminiErr: any) {
+        console.warn('[CLASSIFY] Gemini failed, fallback Claude Haiku:', geminiErr?.message?.slice(0, 100));
+        const response = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 300,
+          messages: [{ role: 'user', content: prompt }],
+        });
+        text = response.content[0].type === 'text' ? response.content[0].text : '';
+      }
+
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]) as ClassificationResult;

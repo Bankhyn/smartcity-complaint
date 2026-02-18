@@ -98,6 +98,7 @@ const alterations = [
   `ALTER TABLE complaints ADD COLUMN accepted_by TEXT`,
   `ALTER TABLE complaints ADD COLUMN accept_note TEXT`,
   `ALTER TABLE complaints ADD COLUMN scheduled_date TEXT`,
+  `ALTER TABLE officers ADD COLUMN line_display_name TEXT`,
 ];
 
 export async function runMigrations() {

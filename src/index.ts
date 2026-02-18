@@ -6,8 +6,10 @@ import { facebookWebhook } from './webhooks/facebook.webhook.js';
 import { tasksApi } from './liff/api/tasks.js';
 import { officersApi } from './liff/api/officers.js';
 import { uploadsApi } from './liff/api/uploads.js';
+import { dashboardApi } from './liff/api/dashboard.js';
 import { seedDepartments } from './db/seed.js';
 import { runMigrations } from './db/migrate.js';
+import { tokenService } from './services/token.service.js';
 
 const app = express();
 
@@ -34,10 +36,20 @@ app.use(facebookWebhook);
 app.use('/api/tasks', tasksApi);
 app.use('/api/officers', officersApi);
 app.use('/api/uploads', uploadsApi);
+app.use('/api/dashboard', dashboardApi);
 
 // Config for LIFF
 app.get('/api/config', (_req, res) => {
   res.json({ liffId: env.liffId });
+});
+
+// Token verify — หน้าเว็บเรียกเช็คว่า token ถูกต้องไหม
+app.get('/api/auth/verify', (req, res) => {
+  const token = req.query.token as string;
+  if (!token) return res.status(400).json({ error: 'Missing token' });
+  const data = tokenService.verify(token);
+  if (!data) return res.status(401).json({ error: 'Token ไม่ถูกต้องหรือหมดอายุ กรุณาพิมพ์ /ppnr ใหม่' });
+  res.json({ success: true, lineUserId: data.lineUserId, officerId: data.officerId });
 });
 
 // Health check

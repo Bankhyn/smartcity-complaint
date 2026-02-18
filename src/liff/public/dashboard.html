@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard กอง</title>
+  <link rel="stylesheet" href="/liff/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    .dashboard-header { background:linear-gradient(135deg,#1565C0,#1E88E5); color:#fff; padding:20px; border-radius:12px; margin-bottom:16px; text-align:center; }
+    .dashboard-header h2 { margin:0 0 4px; font-size:1.2rem; }
+    .dashboard-header .sub { opacity:.8; font-size:.85rem; }
+    .kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+    .kpi-card { background:#fff; border-radius:10px; padding:14px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .kpi-card .number { font-size:1.8rem; font-weight:700; }
+    .kpi-card .label { font-size:.8rem; color:#666; margin-top:4px; }
+    .kpi-card.pending .number { color:#FF9800; }
+    .kpi-card.accepted .number { color:#2196F3; }
+    .kpi-card.dispatched .number { color:#9C27B0; }
+    .kpi-card.completed .number { color:#4CAF50; }
+    .kpi-card.waiting .number { color:#FF9800; }
+    .kpi-card.failed .number { color:#F44336; }
+    .perf-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px; }
+    .perf-card { background:#fff; border-radius:10px; padding:12px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .perf-card .number { font-size:1.3rem; font-weight:700; color:#1565C0; }
+    .perf-card .label { font-size:.7rem; color:#999; margin-top:2px; }
+    .chart-card { background:#fff; border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .chart-card h3 { font-size:.95rem; color:#333; margin:0 0 12px; }
+    .workload-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    .workload-table th { background:#f5f5f5; padding:8px 6px; text-align:left; font-weight:600; }
+    .workload-table td { padding:8px 6px; border-bottom:1px solid #eee; }
+    .complaint-row { background:#fff; padding:12px; border-radius:8px; margin-bottom:8px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+    .complaint-row .ref { color:#2196F3; font-weight:700; font-size:.85rem; }
+    .complaint-row .issue { font-weight:600; margin:4px 0; font-size:.9rem; }
+    .complaint-row .meta { font-size:.78rem; color:#999; }
+    .status-badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:.72rem; font-weight:600; }
+    .status-badge.pending { background:#FFF3E0; color:#E65100; }
+    .status-badge.accepted { background:#E3F2FD; color:#1565C0; }
+    .status-badge.dispatched { background:#F3E5F5; color:#6A1B9A; }
+    .status-badge.completed { background:#E8F5E9; color:#2E7D32; }
+    .status-badge.waiting { background:#FFF3E0; color:#E65100; }
+    .status-badge.failed { background:#FFEBEE; color:#C62828; }
+    .filter-row { display:flex; gap:8px; align-items:center; margin-bottom:16px; background:#fff; padding:10px; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .filter-row input { flex:1; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:.85rem; }
+    .filter-row button { padding:8px 16px; background:#2196F3; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loading" class="loading">กำลังโหลด Dashboard...</div>
+    <div id="content" class="hidden">
+      <div class="dashboard-header" id="header"></div>
+      <div class="filter-row">
+        <input type="date" id="dateFrom"> <span>-</span> <input type="date" id="dateTo">
+        <button onclick="refresh()">กรอง</button>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="perf-grid" id="perfGrid"></div>
+      <div class="chart-card"><h3>คำร้องรายวัน (30 วัน)</h3><canvas id="dailyChart"></canvas></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div class="chart-card"><h3>สถานะ</h3><canvas id="statusChart"></canvas></div>
+        <div class="chart-card"><h3>หมวด</h3><canvas id="categoryChart"></canvas></div>
+      </div>
+      <div class="chart-card"><h3>ผลงานเจ้าหน้าที่</h3><table class="workload-table" id="workloadTable"></table></div>
+      <div class="chart-card"><h3>คำร้องล่าสุด</h3><div id="recentList"></div></div>
+    </div>
+    <div id="result" class="result hidden"></div>
+  </div>
+  <script>
+    const token = new URLSearchParams(window.location.search).get('t') || '';
+    const H = { 'ngrok-skip-browser-warning': '1' };
+    let dailyChartInstance, statusChartInstance, categoryChartInstance;
+
+    const STATUS_LABELS = { pending:'รอรับเรื่อง', accepted:'รับเรื่องแล้ว', dispatched:'ออกปฏิบัติงาน', completed:'สำเร็จ', waiting:'รอดำเนินการ', failed:'ไม่สำเร็จ' };
+    const STATUS_COLORS = { pending:'#FF9800', accepted:'#2196F3', dispatched:'#9C27B0', completed:'#4CAF50', waiting:'#FFC107', failed:'#F44336' };
+
+    async function init() {
+      try {
+        const authRes = await fetch(`/api/auth/verify?token=${token}`, { headers: H });
+        const auth = await authRes.json();
+        if (!auth.success || !auth.officerId) { showError(auth.error || 'ลิงก์หมดอายุ'); return; }
+        await loadDashboard();
+      } catch (e) { showError('เกิดข้อผิดพลาด: ' + e.message); }
+    }
+
+    async function loadDashboard(from, to) {
+      let url = `/api/dashboard/department?token=${token}`;
+      const deptParam = new URLSearchParams(window.location.search).get('dept');
+      if (deptParam) url += `&dept=${deptParam}`;
+      if (from) url += `&from=${from}`;
+      if (to) url += `&to=${to}`;
+
+      const res = await fetch(url, { headers: H });
+      const data = await res.json();
+      if (data.error) { showError(data.error); return; }
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+      renderAll(data);
+    }
+
+    function refresh() {
+      const from = document.getElementById('dateFrom').value;
+      const to = document.getElementById('dateTo').value;
+      loadDashboard(from, to);
+    }
+
+    function renderAll(d) {
+      // Header
+      document.getElementById('header').innerHTML = `
+        <h2>${d.department.name}</h2>
+        <div class="sub">${d.officer.name} ${d.officer.position ? '(' + d.officer.position + ')' : ''}</div>
+        <div class="sub">คำร้องทั้งหมด ${d.summary.total} เรื่อง</div>`;
+
+      // KPI cards
+      document.getElementById('kpiGrid').innerHTML = ['pending','accepted','dispatched','completed','waiting','failed']
+        .map(s => `<div class="kpi-card ${s}"><div class="number">${d.summary[s]}</div><div class="label">${STATUS_LABELS[s]}</div></div>`).join('');
+
+      // Performance
+      document.getElementById('perfGrid').innerHTML = `
+        <div class="perf-card"><div class="number">${d.performance.avgAcceptTimeHours ?? '-'}</div><div class="label">ชม. เฉลี่ยรับเรื่อง</div></div>
+        <div class="perf-card"><div class="number">${d.performance.avgResolveTimeHours ?? '-'}</div><div class="label">ชม. เฉลี่ยปิดงาน</div></div>
+        <div class="perf-card"><div class="number">${d.performance.completionRate}%</div><div class="label">อัตราสำเร็จ</div></div>`;
+
+      // Daily chart
+      if (dailyChartInstance) dailyChartInstance.destroy();
+      dailyChartInstance = new Chart(document.getElementById('dailyChart'), {
+        type: 'line',
+        data: {
+          labels: d.dailyCounts.map(r => r.date.slice(5)),
+          datasets: [{ label: 'คำร้อง', data: d.dailyCounts.map(r => r.count), borderColor: '#2196F3', backgroundColor: 'rgba(33,150,243,.1)', fill: true, tension: .3 }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 7, font: { size: 10 } } }, y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+
+      // Status doughnut
+      const statusData = d.statusBreakdown.filter(s => s.count > 0);
+      if (statusChartInstance) statusChartInstance.destroy();
+      statusChartInstance = new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+          labels: statusData.map(s => STATUS_LABELS[s.status] || s.status),
+          datasets: [{ data: statusData.map(s => s.count), backgroundColor: statusData.map(s => STATUS_COLORS[s.status] || '#999') }]
+        },
+        options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+      });
+
+      // Category bar
+      if (categoryChartInstance) categoryChartInstance.destroy();
+      categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+          labels: d.categoryBreakdown.map(c => c.category.length > 10 ? c.category.slice(0,10)+'..' : c.category),
+          datasets: [{ data: d.categoryBreakdown.map(c => c.count), backgroundColor: '#42A5F5' }]
+        },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+
+      // Workload table
+      const wt = document.getElementById('workloadTable');
+      wt.innerHTML = `<tr><th>ชื่อ</th><th>กำลังทำ</th><th>สำเร็จ</th><th>รอ</th><th>ไม่สำเร็จ</th></tr>` +
+        d.officerWorkload.map(o => `<tr><td>${o.name}</td><td>${o.dispatched}</td><td>${o.completed}</td><td>${o.waiting}</td><td>${o.failed}</td></tr>`).join('');
+      if (d.officerWorkload.length === 0) wt.innerHTML += '<tr><td colspan="5" style="text-align:center;color:#999;">ยังไม่มีเจ้าหน้าที่</td></tr>';
+
+      // Recent
+      document.getElementById('recentList').innerHTML = d.recentComplaints.length === 0
+        ? '<p style="text-align:center;color:#999;">ไม่มีคำร้อง</p>'
+        : d.recentComplaints.map(c => {
+          const date = new Date(c.createdAt).toLocaleDateString('th-TH',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+          return `<div class="complaint-row">
+            <div class="ref">${c.refId} <span class="status-badge ${c.status}">${STATUS_LABELS[c.status]||c.status}</span></div>
+            <div class="issue">${c.issue}</div>
+            <div class="meta">${c.contactName} | ${c.category} | ${date}</div>
+          </div>`;
+        }).join('');
+    }
+
+    function showError(msg) {
+      document.getElementById('loading').classList.add('hidden');
+      const r = document.getElementById('result');
+      r.innerHTML = msg; r.className = 'result error'; r.classList.remove('hidden');
+    }
+
+    init();
+  </script>
+</body>
+</html>

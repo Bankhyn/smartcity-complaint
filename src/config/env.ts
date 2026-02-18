@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 export const env = {
   port: parseInt(process.env.PORT || '3100'),
+  baseUrl: process.env.BASE_URL || `http://localhost:${process.env.PORT || '3100'}`,
 
   // LINE
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET || '',
@@ -15,6 +16,7 @@ export const env = {
 
   // AI
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+  googleAiApiKey: process.env.GOOGLE_AI_API_KEY || '',
 
   // LINE Group IDs per department
   lineGroups: {

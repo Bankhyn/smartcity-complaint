@@ -8,28 +8,17 @@
 </head>
 <body>
   <div class="container">
-    <h1>📋 ปิดงาน</h1>
+    <h1>✅ ปิดงาน</h1>
     <p id="officerInfo" style="text-align:center;color:#2196F3;font-weight:bold;margin-bottom:12px;"></p>
-    <div id="taskList" class="task-list">
-      <p class="loading">กำลังโหลด...</p>
-    </div>
+    <div id="taskList" class="task-list"><p class="loading">กำลังตรวจสอบ...</p></div>
     <div id="closeForm" class="hidden">
       <h2 id="selectedTaskRef"></h2>
       <div class="form-group">
         <label>ผลดำเนินงาน</label>
         <div class="radio-group">
-          <label class="radio-card success">
-            <input type="radio" name="status" value="completed">
-            <span>✅ สำเร็จ</span>
-          </label>
-          <label class="radio-card warning">
-            <input type="radio" name="status" value="waiting">
-            <span>⏳ รอดำเนินงาน</span>
-          </label>
-          <label class="radio-card danger">
-            <input type="radio" name="status" value="failed">
-            <span>❌ ไม่สำเร็จ</span>
-          </label>
+          <label class="radio-card success"><input type="radio" name="status" value="completed"><span>✅ สำเร็จ</span></label>
+          <label class="radio-card warning"><input type="radio" name="status" value="waiting"><span>⏳ รอดำเนินงาน</span></label>
+          <label class="radio-card danger"><input type="radio" name="status" value="failed"><span>❌ ไม่สำเร็จ</span></label>
         </div>
       </div>
       <div id="noteSection" class="form-group hidden">
@@ -41,163 +30,99 @@
         <input type="file" id="photoInput" accept="image/*" capture="environment" style="margin-top:6px;">
         <div id="photoPreview" style="margin-top:8px;"></div>
       </div>
-      <button class="btn btn-primary" onclick="closeTask()">💾 บันทึกผล</button>
+      <button class="btn btn-primary" type="button" onclick="closeTask()">💾 บันทึกผล</button>
     </div>
     <div id="result" class="result hidden"></div>
   </div>
-
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
+    const token = new URLSearchParams(window.location.search).get('t') || '';
+    const H = { 'ngrok-skip-browser-warning': '1' };
     let officerId = null;
     let selectedComplaintId = null;
     let tasks = [];
     let photoBase64 = null;
 
-    // Preview photo
     document.getElementById('photoInput').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+      const file = e.target.files[0]; if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
         photoBase64 = ev.target.result;
-        document.getElementById('photoPreview').innerHTML =
-          `<img src="${photoBase64}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;">`;
+        document.getElementById('photoPreview').innerHTML = `<img src="${photoBase64}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;">`;
       };
       reader.readAsDataURL(file);
     });
 
     async function init() {
       try {
-        const config = await fetch('/api/config').then(r => r.json());
-        await liff.init({ liffId: config.liffId });
-
-        if (!liff.isLoggedIn()) {
-          if (!sessionStorage.getItem('liff_logging_in')) {
-            sessionStorage.setItem('liff_logging_in', '1');
-            liff.login();
-            return;
-          }
-          sessionStorage.removeItem('liff_logging_in');
-          showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ใหม่ผ่านแชท LINE');
-          return;
+        const authRes = await fetch(`/api/auth/verify?token=${token}`, { headers: H });
+        const auth = await authRes.json();
+        if (!auth.success || !auth.officerId) {
+          showError(auth.error || 'ลิงก์หมดอายุ กรุณาพิมพ์ /ppnr ใหม่'); return;
         }
-        sessionStorage.removeItem('liff_logging_in');
-
-        // ดึง officer จาก LINE profile
-        const profile = await liff.getProfile();
-        const officerRes = await fetch(`/api/officers/${profile.userId}`);
-        if (!officerRes.ok) {
-          showError('กรุณาลงทะเบียนก่อน พิมพ์ /ลงทะเบียน ในกลุ่ม');
-          return;
+        officerId = auth.officerId;
+        const officerRes = await fetch(`/api/officers/by-id/${officerId}`, { headers: H });
+        if (officerRes.ok) {
+          const officer = await officerRes.json();
+          document.getElementById('officerInfo').textContent = `👷 ${officer.name}`;
         }
-        const officer = await officerRes.json();
-        officerId = officer.id;
-        document.getElementById('officerInfo').textContent = `👷 ${officer.name}`;
-
-        const res = await fetch(`/api/tasks/dispatched/${officerId}`);
+        const res = await fetch(`/api/tasks/dispatched/${officerId}`, { headers: H });
         tasks = await res.json();
         renderTasks();
-      } catch (err) {
-        showError('เกิดข้อผิดพลาด: ' + err.message);
-      }
+      } catch (err) { showError('เกิดข้อผิดพลาด: ' + err.message); }
     }
 
     function showError(msg) {
-      document.getElementById('taskList').innerHTML = `<p class="error" style="color:#C62828;text-align:center;padding:20px;">${msg}</p>`;
+      document.getElementById('taskList').innerHTML = `<p style="color:#C62828;text-align:center;padding:20px;">${msg}</p>`;
     }
-
     function renderTasks() {
-      const container = document.getElementById('taskList');
-      if (tasks.length === 0) {
-        container.innerHTML = '<p class="empty">ไม่มีงานที่รอปิด ✨</p>';
-        return;
-      }
-
-      container.innerHTML = tasks.map(t => `
-        <div class="task-card clickable" onclick="selectTask(${t.id}, '${t.refId}')">
+      const c = document.getElementById('taskList');
+      if (tasks.length === 0) { c.innerHTML = '<p class="empty">ไม่มีงานที่รอปิด ✨</p>'; return; }
+      c.innerHTML = tasks.map(t => `
+        <div class="task-card clickable" onclick="selectTask(${t.id},'${t.refId}')">
           <div class="task-info">
             <div class="task-ref">${t.refId}</div>
             <div class="task-issue">${t.issue}</div>
             <div class="task-location">📍 ${t.location || '-'}</div>
           </div>
-        </div>
-      `).join('');
+        </div>`).join('');
     }
-
     function selectTask(id, refId) {
       selectedComplaintId = id;
       document.getElementById('selectedTaskRef').textContent = refId;
       document.getElementById('closeForm').classList.remove('hidden');
       document.getElementById('taskList').classList.add('hidden');
     }
-
-    // Show/hide note based on status
-    document.querySelectorAll('input[name="status"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        const noteSection = document.getElementById('noteSection');
-        const noteLabel = document.getElementById('noteLabel');
-        if (e.target.value === 'completed') {
-          noteSection.classList.add('hidden');
-        } else {
-          noteSection.classList.remove('hidden');
-          noteLabel.textContent = e.target.value === 'waiting' ? 'สาเหตุที่รอ (เช่น รออะไหล่)' : 'สาเหตุที่ไม่สำเร็จ (เช่น เจ้าบ้านไม่รับสาย)';
+    document.querySelectorAll('input[name="status"]').forEach(r => {
+      r.addEventListener('change', (e) => {
+        const ns = document.getElementById('noteSection');
+        if (e.target.value === 'completed') { ns.classList.add('hidden'); }
+        else { ns.classList.remove('hidden');
+          document.getElementById('noteLabel').textContent = e.target.value === 'waiting' ? 'สาเหตุที่รอ' : 'สาเหตุที่ไม่สำเร็จ';
         }
       });
     });
-
     async function closeTask() {
       const status = document.querySelector('input[name="status"]:checked')?.value;
-      if (!status) {
-        alert('กรุณาเลือกผลดำเนินงาน');
-        return;
-      }
-
+      if (!status) { alert('กรุณาเลือกผลดำเนินงาน'); return; }
       const note = document.getElementById('note').value;
-      let photoUrl = undefined;
-
-      // อัพโหลดรูปถ้ามี
+      let photoUrl;
       if (photoBase64) {
         try {
-          const uploadRes = await fetch('/api/uploads/image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: photoBase64 }),
-          });
-          const uploadData = await uploadRes.json();
-          if (uploadData.success) {
-            photoUrl = uploadData.path;
-          }
-        } catch (e) {
-          console.error('Upload failed:', e);
-        }
+          const u = await fetch('/api/uploads/image',{method:'POST',headers:{'Content-Type':'application/json',...H},body:JSON.stringify({image:photoBase64})});
+          const ud = await u.json(); if (ud.success) photoUrl = ud.path;
+        } catch(e) { console.error('Upload failed:',e); }
       }
-
-      const res = await fetch('/api/tasks/close', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          complaintId: selectedComplaintId,
-          resultStatus: status,
-          note: note || undefined,
-          photoUrl: photoUrl || undefined,
-        }),
-      });
+      const res = await fetch('/api/tasks/close',{method:'POST',headers:{'Content-Type':'application/json',...H},
+        body:JSON.stringify({complaintId:selectedComplaintId,resultStatus:status,note:note||undefined,photoUrl})});
       const data = await res.json();
-
       const result = document.getElementById('result');
-      result.classList.remove('hidden');
-      document.getElementById('closeForm').classList.add('hidden');
+      result.classList.remove('hidden'); document.getElementById('closeForm').classList.add('hidden');
       if (data.success) {
-        const statusText = status === 'completed' ? '✅ สำเร็จ' : status === 'waiting' ? '⏳ รอดำเนินงาน' : '❌ ไม่สำเร็จ';
-        result.innerHTML = `บันทึกผลเรียบร้อย!<br>${data.refId}: ${statusText}`;
+        const st = status==='completed'?'✅ สำเร็จ':status==='waiting'?'⏳ รอดำเนินงาน':'❌ ไม่สำเร็จ';
+        result.innerHTML = `บันทึกผลเรียบร้อย!<br>${data.refId}: ${st}`;
         result.className = 'result success';
-        setTimeout(() => { if (liff.isInClient()) liff.closeWindow(); }, 2000);
-      } else {
-        result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
-        result.className = 'result error';
-      }
+      } else { result.innerHTML = '❌ '+(data.error||'เกิดข้อผิดพลาด'); result.className = 'result error'; }
     }
-
     init();
   </script>
 </body>

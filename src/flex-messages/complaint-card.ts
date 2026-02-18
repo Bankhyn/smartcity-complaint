@@ -8,7 +8,7 @@ export function complaintCardFlex(complaint: {
   contactPhone?: string | null;
   photoUrl?: string | null;
   createdAt: string;
-}, departmentName: string, platform: string, liffId?: string) {
+}, departmentName: string, platform: string) {
   // สร้าง body contents
   const bodyContents: any[] = [
     { type: 'text', text: complaint.issue, weight: 'bold', size: 'md', wrap: true },
@@ -21,8 +21,8 @@ export function complaintCardFlex(complaint: {
     infoRow('วันที่', formatDate(complaint.createdAt)),
   ];
 
-  // เพิ่มรูปถ้ามี
-  const heroSection = (complaint.photoUrl && complaint.photoUrl.startsWith('http')) ? {
+  // เพิ่มรูปถ้ามี (LINE API ต้อง HTTPS)
+  const heroSection = (complaint.photoUrl && complaint.photoUrl.startsWith('https://')) ? {
     type: 'image',
     url: complaint.photoUrl,
     size: 'full',
@@ -63,11 +63,7 @@ export function complaintCardFlex(complaint: {
             type: 'button',
             style: 'primary',
             color: '#4CAF50',
-            action: liffId ? {
-              type: 'uri' as const,
-              label: '✅ รับเรื่อง',
-              uri: `https://liff.line.me/${liffId}/accept.html?ref=${complaint.refId}`,
-            } : {
+            action: {
               type: 'postback' as const,
               label: '✅ รับเรื่อง',
               displayText: `รับเรื่อง ${complaint.refId}`,
@@ -169,23 +165,86 @@ export function departmentSelectFlex(complaintRefId: string, departments: { code
   };
 }
 
+// Flex Message: แจ้งประชาชนว่ารับเรื่องแล้ว
+export function acceptNotifyFlex(complaint: {
+  refId: string;
+  issue: string;
+  category?: string | null;
+  acceptNote?: string | null;
+  scheduledDate?: string | null;
+}, departmentName: string) {
+  const bodyContents: any[] = [
+    infoRow('คำร้อง', complaint.refId),
+    infoRow('เรื่อง', complaint.issue),
+    { type: 'separator' },
+    { type: 'text', text: '✅ เจ้าหน้าที่รับเรื่องแล้วค่ะ', weight: 'bold', wrap: true, size: 'sm', color: '#4CAF50' },
+    infoRow('กองที่รับผิดชอบ', departmentName),
+  ];
+
+  if (complaint.scheduledDate) {
+    bodyContents.push(infoRow('กำหนดดำเนินการ', formatDate(complaint.scheduledDate)));
+  }
+
+  if (complaint.acceptNote) {
+    bodyContents.push({ type: 'text', text: `หมายเหตุ: ${complaint.acceptNote}`, size: 'xs' as const, wrap: true, color: '#666666', margin: 'sm' });
+  }
+
+  bodyContents.push({ type: 'text', text: '\nเราจะแจ้งความคืบหน้าให้ทราบอีกครั้งนะคะ 🙏', size: 'xs', wrap: true, color: '#999999', margin: 'md' });
+
+  return {
+    type: 'flex' as const,
+    altText: `รับเรื่องแล้ว ${complaint.refId}`,
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#4CAF50',
+        paddingAll: '15px',
+        contents: [
+          { type: 'text', text: '🔔 แจ้งเตือนจากเทศบาล', color: '#ffffff', weight: 'bold', size: 'md' },
+          { type: 'text', text: 'พลับพลานารายณ์', color: '#E8F5E9', size: 'sm' },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        paddingAll: '15px',
+        contents: bodyContents,
+      },
+    },
+  };
+}
+
 // Flex Message: แจ้งผลกลับประชาชน
 export function resultNotifyFlex(complaint: {
   refId: string;
   issue: string;
   resultStatus?: string | null;
   resultNote?: string | null;
+  resultPhotoUrl?: string | null;
 }, officerName?: string, officerPhone?: string) {
   const statusColor = complaint.resultStatus === 'completed' ? '#4CAF50'
     : complaint.resultStatus === 'waiting' ? '#FF9800' : '#F44336';
   const statusText = complaint.resultStatus === 'completed' ? '✅ ดำเนินการสำเร็จ'
     : complaint.resultStatus === 'waiting' ? '⏳ รอดำเนินการ' : '❌ ไม่สำเร็จ';
 
+  // รูปผลงาน (ต้อง HTTPS สำหรับ LINE Flex)
+  const heroSection = (complaint.resultPhotoUrl && complaint.resultPhotoUrl.startsWith('https://')) ? {
+    type: 'image',
+    url: complaint.resultPhotoUrl,
+    size: 'full',
+    aspectRatio: '20:13',
+    aspectMode: 'cover',
+  } : undefined;
+
   return {
     type: 'flex' as const,
     altText: `ผลดำเนินงาน ${complaint.refId}`,
     contents: {
       type: 'bubble',
+      ...(heroSection ? { hero: heroSection } : {}),
       header: {
         type: 'box',
         layout: 'vertical',

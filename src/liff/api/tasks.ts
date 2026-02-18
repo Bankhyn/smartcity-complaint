@@ -13,6 +13,14 @@ tasksApi.get('/pending/:officerId', async (req, res) => {
   res.json(tasks);
 });
 
+// GET /api/tasks/pending-accept/:officerId — ดึงคำร้อง pending ของกอง (สำหรับหน้ารับงาน)
+tasksApi.get('/pending-accept/:officerId', async (req, res) => {
+  const officer = await officerService.getById(Number(req.params.officerId));
+  if (!officer) return res.status(404).json({ error: 'Officer not found' });
+  const tasks = await complaintService.getByDepartment(officer.departmentId, 'pending');
+  res.json(tasks);
+});
+
 // GET /api/tasks/dispatched/:officerId
 tasksApi.get('/dispatched/:officerId', async (req, res) => {
   const tasks = await complaintService.getByOfficer(Number(req.params.officerId), 'dispatched');
@@ -47,6 +55,16 @@ tasksApi.post('/accept', async (req, res) => {
     acceptNote: acceptNote || undefined,
   });
 
+  // แจ้งเตือนประชาชนว่ารับเรื่องแล้ว
+  const updated = await complaintService.getById(complaint.id);
+  if (updated) {
+    try {
+      await notificationService.notifyAccepted(updated);
+    } catch (e) {
+      console.error(`[accept] notify citizen failed for ${complaint.refId}:`, e);
+    }
+  }
+
   res.json({ success: true, refId: complaint.refId });
 });
 
@@ -67,7 +85,11 @@ tasksApi.post('/dispatch', async (req, res) => {
 
     const updated = await complaintService.getById(cid);
     if (updated) {
-      await notificationService.notifyDispatch(updated, officer);
+      try {
+        await notificationService.notifyDispatch(updated, officer);
+      } catch (e) {
+        console.error(`[dispatch] notify citizen failed for ${updated.refId}:`, e);
+      }
       dispatched.push(updated.refId);
     }
   }
@@ -77,6 +99,7 @@ tasksApi.post('/dispatch', async (req, res) => {
 
 // POST /api/tasks/close
 tasksApi.post('/close', async (req, res) => {
+  console.log('[close] called:', JSON.stringify(req.body));
   const { complaintId, resultStatus, note, photoUrl } = req.body as {
     complaintId: number;
     resultStatus: 'completed' | 'waiting' | 'failed';
@@ -85,13 +108,23 @@ tasksApi.post('/close', async (req, res) => {
   };
 
   const complaint = await complaintService.getById(complaintId);
-  if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
+  if (!complaint) {
+    console.log('[close] complaint not found:', complaintId);
+    return res.status(404).json({ error: 'Complaint not found' });
+  }
 
   await complaintService.close(complaintId, resultStatus, note, photoUrl);
+  console.log(`[close] ${complaint.refId} → ${resultStatus}`);
 
   const updated = await complaintService.getById(complaintId);
   if (updated) {
-    await notificationService.notifyResult(updated);
+    console.log(`[close] notifying citizen userId=${updated.userId}...`);
+    try {
+      await notificationService.notifyResult(updated);
+      console.log(`[close] notification sent OK for ${updated.refId}`);
+    } catch (e: any) {
+      console.error(`[close] notify citizen failed for ${updated.refId}:`, e?.message || e);
+    }
   }
 
   res.json({ success: true, refId: complaint.refId, resultStatus });

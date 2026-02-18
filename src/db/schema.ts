@@ -27,9 +27,10 @@ export const users = sqliteTable('users', {
 export const officers = sqliteTable('officers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   lineUserId: text('line_user_id').notNull().unique(),
-  name: text('name').notNull(),
-  position: text('position'),                      // ตำแหน่ง
-  phone: text('phone').notNull(),                  // เบอร์โทร (แจ้งประชาชน)
+  lineDisplayName: text('line_display_name'),        // ชื่อ LINE (เก็บแยกจากชื่อจริง)
+  name: text('name').notNull(),                      // ชื่อ-นามสกุลจริง
+  position: text('position'),                        // ตำแหน่ง
+  phone: text('phone').notNull(),                    // เบอร์โทร (แจ้งประชาชน)
   departmentId: integer('department_id').notNull().references(() => departments.id),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   registeredAt: text('registered_at').notNull().$defaultFn(() => new Date().toISOString()),

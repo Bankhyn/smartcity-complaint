@@ -5,143 +5,172 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ลงทะเบียนเจ้าหน้าที่</title>
   <link rel="stylesheet" href="/liff/css/style.css">
+  <style>
+    .current-info { background:#E3F2FD; border-radius:10px; padding:16px; margin-bottom:16px; }
+    .current-info .label { color:#999; font-size:0.85rem; }
+    .current-info .value { font-weight:600; margin-bottom:8px; }
+    .btn-danger { background:#E53935; color:#fff; border:none; padding:12px; border-radius:8px; font-size:1rem; width:100%; cursor:pointer; margin-top:8px; }
+    .btn-outline { background:#fff; color:#1565C0; border:2px solid #1565C0; padding:12px; border-radius:8px; font-size:1rem; width:100%; cursor:pointer; margin-top:8px; }
+  </style>
 </head>
 <body>
   <div class="container">
     <h1>📝 ลงทะเบียนเจ้าหน้าที่</h1>
-    <div id="loading" class="loading">กำลังโหลด...</div>
+    <div id="loading" class="loading">กำลังตรวจสอบ...</div>
+
+    <div id="existingSection" class="hidden">
+      <div class="current-info">
+        <div class="label">ชื่อ-นามสกุล</div>
+        <div class="value" id="curName"></div>
+        <div class="label">ตำแหน่ง</div>
+        <div class="value" id="curPosition"></div>
+        <div class="label">เบอร์โทร</div>
+        <div class="value" id="curPhone"></div>
+        <div class="label">สังกัดกอง</div>
+        <div class="value" id="curDept"></div>
+      </div>
+      <button class="btn-outline" type="button" onclick="showEditForm()">✏️ แก้ไขข้อมูล</button>
+      <button class="btn-danger" type="button" onclick="doUnregister()">🗑️ ลบทะเบียน</button>
+    </div>
 
     <div id="formSection" class="hidden">
       <div class="form-group">
-        <label>ชื่อ-นามสกุล</label>
-        <input type="text" id="name" placeholder="สมชาย ใจดี">
+        <label>ชื่อ-นามสกุล (จริง) <span style="color:#F44336">*</span></label>
+        <input type="text" id="name" placeholder="เช่น สมชาย ใจดี">
+        <small style="color:#999;">กรุณากรอกชื่อ-นามสกุลจริง เพื่อแจ้งประชาชนเวลาออกปฏิบัติงาน</small>
       </div>
       <div class="form-group">
         <label>ตำแหน่ง</label>
-        <input type="text" id="position" placeholder="ช่างไฟฟ้า">
+        <input type="text" id="position" placeholder="เช่น ช่างไฟฟ้า">
       </div>
       <div class="form-group">
-        <label>เบอร์โทรศัพท์</label>
+        <label>เบอร์โทรศัพท์ <span style="color:#F44336">*</span></label>
         <input type="tel" id="phone" placeholder="089-123-4567">
       </div>
       <div class="form-group">
-        <label>สังกัดกอง</label>
-        <select id="department">
-          <option value="">-- เลือกกอง --</option>
-        </select>
+        <label>สังกัดกอง <span style="color:#F44336">*</span></label>
+        <select id="department"><option value="">-- เลือกกอง --</option></select>
       </div>
-      <button id="submitBtn" class="btn btn-primary" type="button">💾 ลงทะเบียน</button>
+      <button id="submitBtn" class="btn btn-primary" type="button">💾 บันทึก</button>
     </div>
-
     <div id="result" class="result hidden"></div>
   </div>
 
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
+    const token = new URLSearchParams(window.location.search).get('t') || '';
+    const H = { 'ngrok-skip-browser-warning': '1' };
     let lineUserId = '';
+    let departments = [];
+    let existingOfficer = null;
 
     async function init() {
       try {
-        const config = await fetch('/api/config').then(r => r.json());
-        if (!config.liffId) {
-          showError('ไม่พบ LIFF ID');
+        // verify token
+        const authRes = await fetch(`/api/auth/verify?token=${token}`, { headers: H });
+        const auth = await authRes.json();
+        if (!auth.success) {
+          showError(auth.error || 'ลิงก์หมดอายุ กรุณาพิมพ์ /ppnr ใหม่');
           return;
         }
+        lineUserId = auth.lineUserId;
+        document.getElementById('loading').classList.add('hidden');
 
-        // init แบบธรรมดา — ไม่ใช้ withLoginOnExternalBrowser
-        await liff.init({ liffId: config.liffId });
-
-        if (!liff.isLoggedIn()) {
-          // ยังไม่ login — redirect ไป LINE Login 1 ครั้ง
-          // ใช้ sessionStorage กัน loop
-          if (!sessionStorage.getItem('liff_logging_in')) {
-            sessionStorage.setItem('liff_logging_in', '1');
-            liff.login();
-            return;
-          }
-          // ถ้า login แล้วยังไม่ได้ → แสดง error
-          sessionStorage.removeItem('liff_logging_in');
-          showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ใหม่ผ่านแชท LINE');
-          return;
-        }
-
-        // Login สำเร็จ
-        sessionStorage.removeItem('liff_logging_in');
-
-        const profile = await liff.getProfile();
-        lineUserId = profile.userId;
-        document.getElementById('name').value = profile.displayName || '';
-
-        const res = await fetch('/api/officers/departments/list');
-        const depts = await res.json();
+        // Load departments
+        const deptRes = await fetch('/api/officers/departments/list', { headers: H });
+        departments = await deptRes.json();
         const select = document.getElementById('department');
-        depts.forEach(d => {
+        departments.forEach(d => {
           const opt = document.createElement('option');
           opt.value = d.id;
           opt.textContent = d.name;
           select.appendChild(opt);
         });
 
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('formSection').classList.remove('hidden');
+        // เช็คว่าลงทะเบียนแล้วหรือยัง
+        const officerRes = await fetch(`/api/officers/${lineUserId}`, { headers: H });
+        if (officerRes.ok) {
+          existingOfficer = await officerRes.json();
+          showExisting();
+        } else {
+          document.getElementById('formSection').classList.remove('hidden');
+        }
+      } catch (err) { showError('เกิดข้อผิดพลาด: ' + err.message); }
+    }
 
-      } catch (err) {
-        showError('Error: ' + (err.message || JSON.stringify(err)));
+    function showExisting() {
+      const dept = departments.find(d => d.id === existingOfficer.departmentId);
+      document.getElementById('curName').textContent = existingOfficer.name;
+      document.getElementById('curPosition').textContent = existingOfficer.position || '-';
+      document.getElementById('curPhone').textContent = existingOfficer.phone;
+      document.getElementById('curDept').textContent = dept ? dept.name : '-';
+      document.getElementById('existingSection').classList.remove('hidden');
+      document.getElementById('formSection').classList.add('hidden');
+    }
+
+    function showEditForm() {
+      document.getElementById('name').value = existingOfficer.name;
+      document.getElementById('position').value = existingOfficer.position || '';
+      document.getElementById('phone').value = existingOfficer.phone;
+      document.getElementById('department').value = existingOfficer.departmentId;
+      document.getElementById('existingSection').classList.add('hidden');
+      document.getElementById('formSection').classList.remove('hidden');
+    }
+
+    async function doUnregister() {
+      if (!confirm('ยืนยันลบทะเบียน?')) return;
+      const res = await fetch('/api/officers/unregister', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...H },
+        body: JSON.stringify({ lineUserId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        existingOfficer = null;
+        document.getElementById('existingSection').classList.add('hidden');
+        document.getElementById('result').innerHTML = '🗑️ ลบทะเบียนเรียบร้อย!';
+        document.getElementById('result').className = 'result success';
+        document.getElementById('result').classList.remove('hidden');
+        document.getElementById('name').value = '';
+        document.getElementById('position').value = '';
+        document.getElementById('phone').value = '';
+        document.getElementById('department').value = '';
+        document.getElementById('formSection').classList.remove('hidden');
       }
     }
 
     function showError(msg) {
       document.getElementById('loading').classList.add('hidden');
-      const result = document.getElementById('result');
-      result.innerHTML = msg;
-      result.className = 'result error';
-      result.classList.remove('hidden');
+      const r = document.getElementById('result');
+      r.innerHTML = msg; r.className = 'result error'; r.classList.remove('hidden');
     }
 
     document.getElementById('submitBtn').addEventListener('click', async () => {
       const name = document.getElementById('name').value.trim();
       const phone = document.getElementById('phone').value.trim();
       const departmentId = document.getElementById('department').value;
-
-      if (!name) { alert('กรุณากรอกชื่อ'); return; }
+      if (!name) { alert('กรุณากรอกชื่อ-นามสกุลจริง'); return; }
+      if (name.length < 4) { alert('กรุณากรอกชื่อ-นามสกุลให้ครบ'); return; }
       if (!phone) { alert('กรุณากรอกเบอร์โทร'); return; }
       if (!departmentId) { alert('กรุณาเลือกกอง'); return; }
 
       const btn = document.getElementById('submitBtn');
-      btn.disabled = true;
-      btn.textContent = 'กำลังลงทะเบียน...';
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
 
-      try {
-        const res = await fetch('/api/officers/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lineUserId,
-            name,
-            position: document.getElementById('position').value.trim(),
-            phone,
-            departmentId,
-          }),
-        });
-        const data = await res.json();
-
-        const result = document.getElementById('result');
-        result.classList.remove('hidden');
+      const res = await fetch('/api/officers/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...H },
+        body: JSON.stringify({ lineUserId, name, position: document.getElementById('position').value.trim(), phone, departmentId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const dept = departments.find(d => d.id === Number(departmentId));
+        document.getElementById('result').innerHTML = `✅ ${existingOfficer ? 'แก้ไข' : 'ลงทะเบียน'}สำเร็จ!<br><b>${name}</b> — ${dept?.name || ''}`;
+        document.getElementById('result').className = 'result success';
+        document.getElementById('result').classList.remove('hidden');
         document.getElementById('formSection').classList.add('hidden');
-
-        if (data.success) {
-          result.innerHTML = '✅ ลงทะเบียนสำเร็จ!';
-          result.className = 'result success';
-          setTimeout(() => { try { liff.closeWindow(); } catch(e) {} }, 1500);
-        } else {
-          result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
-          result.className = 'result error';
-          document.getElementById('formSection').classList.remove('hidden');
-          btn.disabled = false;
-          btn.textContent = '💾 ลงทะเบียน';
-        }
-      } catch (err) {
-        showError('เกิดข้อผิดพลาด: ' + err.message);
+      } else {
+        alert('❌ ' + (data.error || 'เกิดข้อผิดพลาด'));
+        btn.disabled = false; btn.textContent = '💾 บันทึก';
       }
     });
 

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard ผู้บริหาร</title>
+  <link rel="stylesheet" href="/liff/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    .container { max-width:960px; }
+    .exec-header { background:linear-gradient(135deg,#283593,#3949AB); color:#fff; padding:24px; border-radius:12px; margin-bottom:16px; text-align:center; }
+    .exec-header h1 { margin:0; font-size:1.3rem; }
+    .exec-header .sub { opacity:.8; font-size:.85rem; margin-top:4px; }
+    .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+    @media(max-width:600px){ .kpi-row { grid-template-columns:1fr 1fr; } }
+    .kpi-card { background:#fff; border-radius:10px; padding:16px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .kpi-card .number { font-size:2rem; font-weight:700; color:#283593; }
+    .kpi-card .label { font-size:.8rem; color:#666; margin-top:4px; }
+    .kpi-card.green .number { color:#4CAF50; }
+    .chart-card { background:#fff; border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .chart-card h3 { font-size:.95rem; color:#333; margin:0 0 12px; }
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+    @media(max-width:600px){ .two-col { grid-template-columns:1fr; } }
+    .dept-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    .dept-table th { background:#283593; color:#fff; padding:10px 8px; text-align:left; }
+    .dept-table td { padding:10px 8px; border-bottom:1px solid #eee; }
+    .dept-table tr:hover { background:#E8EAF6; }
+    .dept-table .clickable { cursor:pointer; }
+    .status-badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:.72rem; font-weight:600; }
+    .status-badge.pending { background:#FFF3E0; color:#E65100; }
+    .status-badge.accepted { background:#E3F2FD; color:#1565C0; }
+    .status-badge.dispatched { background:#F3E5F5; color:#6A1B9A; }
+    .status-badge.completed { background:#E8F5E9; color:#2E7D32; }
+    .status-badge.waiting { background:#FFF3E0; color:#E65100; }
+    .status-badge.failed { background:#FFEBEE; color:#C62828; }
+    .complaint-row { background:#fff; padding:10px; border-radius:8px; margin-bottom:6px; box-shadow:0 1px 2px rgba(0,0,0,.06); font-size:.85rem; }
+    .complaint-row .ref { color:#2196F3; font-weight:700; font-size:.8rem; }
+    .complaint-row .meta { color:#999; font-size:.75rem; margin-top:2px; }
+    .progress-bar { height:6px; border-radius:3px; background:#eee; overflow:hidden; margin-top:4px; }
+    .progress-bar .fill { height:100%; border-radius:3px; background:#4CAF50; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loading" class="loading">กำลังโหลด Dashboard...</div>
+    <div id="content" class="hidden">
+      <div class="exec-header">
+        <h1>เทศบาลตำบลพลับพลานารายณ์</h1>
+        <div class="sub">Dashboard ผู้บริหาร</div>
+      </div>
+      <div class="kpi-row" id="kpiRow"></div>
+      <div class="chart-card"><h3>เปรียบเทียบคำร้องตามกอง</h3><canvas id="deptChart"></canvas></div>
+      <div class="two-col">
+        <div class="chart-card"><h3>แนวโน้มรายวัน (30 วัน)</h3><canvas id="dailyChart"></canvas></div>
+        <div class="chart-card"><h3>แนวโน้มรายเดือน</h3><canvas id="monthlyChart"></canvas></div>
+      </div>
+      <div class="two-col">
+        <div class="chart-card"><h3>ช่องทางรับเรื่อง</h3><canvas id="platformChart"></canvas></div>
+        <div class="chart-card"><h3>หมวดร้องเรียนสูงสุด</h3><canvas id="categoryChart"></canvas></div>
+      </div>
+      <div class="chart-card"><h3>ผลงานแต่ละกอง</h3><div style="overflow-x:auto;"><table class="dept-table" id="deptTable"></table></div></div>
+      <div class="chart-card"><h3>คำร้องล่าสุด</h3><div id="recentList"></div></div>
+    </div>
+    <div id="result" class="result hidden"></div>
+  </div>
+  <script>
+    const token = new URLSearchParams(window.location.search).get('t') || '';
+    const H = { 'ngrok-skip-browser-warning': '1' };
+    const STATUS_LABELS = { pending:'รอรับเรื่อง', accepted:'รับเรื่องแล้ว', dispatched:'ออกปฏิบัติงาน', completed:'สำเร็จ', waiting:'รอดำเนินการ', failed:'ไม่สำเร็จ' };
+    const STATUS_COLORS = ['#FF9800','#2196F3','#9C27B0','#4CAF50','#FFC107','#F44336'];
+    const STATUS_KEYS = ['pending','accepted','dispatched','completed','waiting','failed'];
+
+    async function init() {
+      try {
+        const authRes = await fetch(`/api/auth/verify?token=${token}`, { headers: H });
+        const auth = await authRes.json();
+        if (!auth.success || !auth.officerId) { showError(auth.error || 'ลิงก์หมดอายุ'); return; }
+
+        const res = await fetch(`/api/dashboard/executive?token=${token}`, { headers: H });
+        const data = await res.json();
+        if (data.error) { showError(data.error); return; }
+
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+        renderAll(data);
+      } catch (e) { showError('เกิดข้อผิดพลาด: ' + e.message); }
+    }
+
+    function renderAll(d) {
+      // KPI row
+      document.getElementById('kpiRow').innerHTML = `
+        <div class="kpi-card"><div class="number">${d.overall.totalComplaints}</div><div class="label">คำร้องทั้งหมด</div></div>
+        <div class="kpi-card"><div class="number">${d.overall.totalThisMonth}</div><div class="label">เดือนนี้</div></div>
+        <div class="kpi-card"><div class="number">${d.overall.totalToday}</div><div class="label">วันนี้</div></div>
+        <div class="kpi-card green"><div class="number">${d.overall.completionRate}%</div><div class="label">อัตราสำเร็จ</div></div>`;
+
+      // Department stacked bar
+      const deptNames = d.departmentSummary.map(s => s.departmentName.replace('กอง','').trim() || s.departmentName);
+      const datasets = STATUS_KEYS.map((key, i) => ({
+        label: STATUS_LABELS[key],
+        data: d.departmentSummary.map(s => s[key] || 0),
+        backgroundColor: STATUS_COLORS[i],
+      }));
+      new Chart(document.getElementById('deptChart'), {
+        type: 'bar',
+        data: { labels: deptNames, datasets },
+        options: { plugins: { legend: { position:'bottom', labels: { font: { size: 10 } } } }, scales: { x: { stacked: true, ticks: { font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+
+      // Daily trend
+      new Chart(document.getElementById('dailyChart'), {
+        type: 'line',
+        data: { labels: d.dailyTrend.map(r => r.date.slice(5)), datasets: [{ label:'คำร้อง', data: d.dailyTrend.map(r => r.count), borderColor:'#3949AB', backgroundColor:'rgba(57,73,171,.1)', fill:true, tension:.3 }] },
+        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 7, font: { size: 9 } } }, y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+
+      // Monthly trend
+      const monthLabels = d.monthlyTrend.map(r => { const [y,m] = r.month.split('-'); const months = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']; return months[+m]+' '+(+y+543-2500); });
+      new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: { labels: monthLabels, datasets: [{ data: d.monthlyTrend.map(r => r.count), backgroundColor:'#5C6BC0' }] },
+        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 9 } } }, y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+
+      // Platform pie
+      const platLabels = d.platformBreakdown.map(p => p.platform === 'line' ? 'LINE' : 'Facebook');
+      const platColors = d.platformBreakdown.map(p => p.platform === 'line' ? '#06C755' : '#1877F2');
+      new Chart(document.getElementById('platformChart'), {
+        type: 'pie',
+        data: { labels: platLabels, datasets: [{ data: d.platformBreakdown.map(p => p.count), backgroundColor: platColors }] },
+        options: { plugins: { legend: { position:'bottom' } } }
+      });
+
+      // Category bar
+      new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: { labels: d.topCategories.map(c => c.category.length > 12 ? c.category.slice(0,12)+'..' : c.category), datasets: [{ data: d.topCategories.map(c => c.count), backgroundColor:'#7986CB' }] },
+        options: { indexAxis:'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+
+      // Department performance table
+      document.getElementById('deptTable').innerHTML = `
+        <tr><th>กอง</th><th>ทั้งหมด</th><th>รอ</th><th>สำเร็จ</th><th>อัตรา</th><th>ช่าง</th></tr>` +
+        d.departmentSummary.map(s => `
+          <tr class="clickable" onclick="openDept(${s.departmentId})">
+            <td>${s.departmentName}</td>
+            <td><b>${s.total}</b></td>
+            <td>${s.pending}</td>
+            <td>${s.completed}</td>
+            <td>${s.completionRate}%<div class="progress-bar"><div class="fill" style="width:${s.completionRate}%"></div></div></td>
+            <td>${s.activeOfficers}</td>
+          </tr>`).join('');
+
+      // Recent complaints
+      document.getElementById('recentList').innerHTML = d.recentComplaints.length === 0
+        ? '<p style="text-align:center;color:#999;">ไม่มีคำร้อง</p>'
+        : d.recentComplaints.map(c => {
+          const date = new Date(c.createdAt).toLocaleDateString('th-TH',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+          return `<div class="complaint-row">
+            <span class="ref">${c.refId}</span> <span class="status-badge ${c.status}">${STATUS_LABELS[c.status]||c.status}</span>
+            <div style="margin-top:4px;">${c.issue}</div>
+            <div class="meta">${c.departmentName} | ${date}</div>
+          </div>`;
+        }).join('');
+    }
+
+    function openDept(deptId) {
+      window.location.href = `/liff/dashboard.html?t=${token}&dept=${deptId}`;
+    }
+
+    function showError(msg) {
+      document.getElementById('loading').classList.add('hidden');
+      const r = document.getElementById('result');
+      r.innerHTML = msg; r.className = 'result error'; r.classList.remove('hidden');
+    }
+
+    init();
+  </script>
+</body>
+</html>

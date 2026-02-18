@@ -19,20 +19,26 @@ if (env.lineChannelSecret) {
 
 async function lineHandler(req: any, res: any) {
   const events: WebhookEvent[] = req.body.events || [];
+  console.log(`[LINE] Received ${events.length} events`);
   try {
     for (const event of events) {
       await handleLineEvent(event);
     }
     res.status(200).json({ status: 'ok' });
   } catch (err) {
-    console.error('LINE webhook error:', err);
+    console.error('[LINE] webhook error:', err);
     res.status(500).end();
   }
 }
 
 async function handleLineEvent(event: WebhookEvent) {
   const msg = lineAdapter.normalize(event);
-  if (!msg) return;
+  if (!msg) {
+    console.log(`[LINE] Unhandled event type: ${event.type}`);
+    return;
+  }
+
+  console.log(`[LINE] ${msg.chatType}/${msg.messageType} from ${msg.senderId.slice(0,8)}...`);
 
   if (msg.chatType === 'group') {
     if (msg.messageType === 'postback' && msg.postbackData) {
@@ -47,10 +53,16 @@ async function handleLineEvent(event: WebhookEvent) {
   }
 
   if (msg.chatType === 'user') {
-    const responses = await handleCitizenMessage(msg);
-    if (responses.length > 0 && msg.replyToken) {
-      const messages = responses.map(text => ({ type: 'text' as const, text }));
-      await lineAdapter.replyMessages(msg.replyToken, messages);
+    try {
+      const responses = await handleCitizenMessage(msg);
+      console.log(`[LINE] AI replied ${responses.length} messages`);
+      if (responses.length > 0 && msg.replyToken) {
+        const messages = responses.map(text => ({ type: 'text' as const, text }));
+        await lineAdapter.replyMessages(msg.replyToken, messages);
+        console.log(`[LINE] Reply sent OK`);
+      }
+    } catch (err) {
+      console.error(`[LINE] citizen handler error:`, err);
     }
   }
 }

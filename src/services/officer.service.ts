@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 export const officerService = {
   async register(data: {
     lineUserId: string;
+    lineDisplayName?: string;
     name: string;
     position?: string;
     phone: string;
@@ -14,7 +15,13 @@ export const officerService = {
 
     if (existing) {
       await db.update(schema.officers)
-        .set({ name: data.name, position: data.position, phone: data.phone, departmentId: data.departmentId })
+        .set({
+          name: data.name,
+          lineDisplayName: data.lineDisplayName,
+          position: data.position,
+          phone: data.phone,
+          departmentId: data.departmentId,
+        })
         .where(eq(schema.officers.id, existing.id));
       return { ...existing, ...data, updated: true };
     }
