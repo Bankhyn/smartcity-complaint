@@ -27,11 +27,19 @@
     async function init() {
       try {
         const config = await fetch('/api/config').then(r => r.json());
-        await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
+        await liff.init({ liffId: config.liffId });
 
         if (!liff.isLoggedIn()) {
+          if (!sessionStorage.getItem('liff_logging_in')) {
+            sessionStorage.setItem('liff_logging_in', '1');
+            liff.login();
+            return;
+          }
+          sessionStorage.removeItem('liff_logging_in');
+          showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ใหม่ผ่านแชท LINE');
           return;
         }
+        sessionStorage.removeItem('liff_logging_in');
 
         // ดึง officer จาก LINE profile
         const profile = await liff.getProfile();

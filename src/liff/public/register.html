@@ -43,34 +43,35 @@
     async function init() {
       try {
         const config = await fetch('/api/config').then(r => r.json());
-
         if (!config.liffId) {
           showError('ไม่พบ LIFF ID');
           return;
         }
 
-        await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
+        // init แบบธรรมดา — ไม่ใช้ withLoginOnExternalBrowser
+        await liff.init({ liffId: config.liffId });
 
         if (!liff.isLoggedIn()) {
-          // กำลัง redirect ไป login อยู่ — ถ้าวนซ้ำ 3 รอบให้หยุด
-          const attempts = Number(sessionStorage.getItem('liff_login_attempts') || 0);
-          if (attempts >= 2) {
-            sessionStorage.removeItem('liff_login_attempts');
-            showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ผ่านแชท LINE');
+          // ยังไม่ login — redirect ไป LINE Login 1 ครั้ง
+          // ใช้ sessionStorage กัน loop
+          if (!sessionStorage.getItem('liff_logging_in')) {
+            sessionStorage.setItem('liff_logging_in', '1');
+            liff.login();
             return;
           }
-          sessionStorage.setItem('liff_login_attempts', String(attempts + 1));
+          // ถ้า login แล้วยังไม่ได้ → แสดง error
+          sessionStorage.removeItem('liff_logging_in');
+          showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ใหม่ผ่านแชท LINE');
           return;
         }
 
-        // Login สำเร็จ — reset counter
-        sessionStorage.removeItem('liff_login_attempts');
+        // Login สำเร็จ
+        sessionStorage.removeItem('liff_logging_in');
 
         const profile = await liff.getProfile();
         lineUserId = profile.userId;
         document.getElementById('name').value = profile.displayName || '';
 
-        // Load departments
         const res = await fetch('/api/officers/departments/list');
         const depts = await res.json();
         const select = document.getElementById('department');
@@ -97,7 +98,6 @@
       result.classList.remove('hidden');
     }
 
-    // ปุ่มลงทะเบียน — ไม่ใช้ form submit เพื่อป้องกัน reload
     document.getElementById('submitBtn').addEventListener('click', async () => {
       const name = document.getElementById('name').value.trim();
       const phone = document.getElementById('phone').value.trim();
