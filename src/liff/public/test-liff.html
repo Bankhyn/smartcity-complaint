@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIFF Debug</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
+    .log { background: #fff; padding: 10px; margin: 8px 0; border-radius: 8px; font-size: 14px; word-break: break-all; }
+    .ok { border-left: 4px solid #4CAF50; }
+    .err { border-left: 4px solid #F44336; }
+    .info { border-left: 4px solid #2196F3; }
+    h2 { font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h2>LIFF Debug Test</h2>
+  <div id="logs"></div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    function log(msg, type) {
+      const div = document.createElement('div');
+      div.className = 'log ' + (type || 'info');
+      div.textContent = msg;
+      document.getElementById('logs').appendChild(div);
+    }
+
+    async function test() {
+      log('Page URL: ' + window.location.href);
+      log('User Agent: ' + navigator.userAgent);
+
+      // Step 1: fetch config
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        log('API /api/config OK — LIFF ID: ' + config.liffId, 'ok');
+
+        if (!config.liffId) {
+          log('LIFF ID is empty! Check LIFF_ID env var on Render', 'err');
+          return;
+        }
+
+        // Step 2: init LIFF
+        try {
+          log('Calling liff.init({ liffId: "' + config.liffId + '" })...');
+          await liff.init({ liffId: config.liffId });
+          log('liff.init() SUCCESS!', 'ok');
+          log('liff.isInClient(): ' + liff.isInClient(), 'ok');
+          log('liff.isLoggedIn(): ' + liff.isLoggedIn(), 'ok');
+          log('liff.getOS(): ' + liff.getOS(), 'ok');
+          log('liff.getLanguage(): ' + liff.getLanguage(), 'ok');
+          log('liff.getVersion(): ' + liff.getVersion(), 'ok');
+
+          // Step 3: get profile
+          if (liff.isLoggedIn()) {
+            try {
+              const profile = await liff.getProfile();
+              log('Profile: ' + profile.displayName + ' (' + profile.userId + ')', 'ok');
+            } catch (e) {
+              log('getProfile error: ' + e.message, 'err');
+            }
+          } else {
+            log('Not logged in — login required', 'info');
+          }
+        } catch (e) {
+          log('liff.init() FAILED: ' + (e.message || JSON.stringify(e)), 'err');
+          if (e.code) log('Error code: ' + e.code, 'err');
+        }
+      } catch (e) {
+        log('Fetch /api/config FAILED: ' + e.message, 'err');
+
+        // Try hardcoded LIFF ID
+        log('Trying hardcoded LIFF ID...');
+        try {
+          await liff.init({ liffId: '2009155809-UpIyf2ly' });
+          log('liff.init() with hardcoded ID: SUCCESS!', 'ok');
+        } catch (e2) {
+          log('liff.init() with hardcoded ID FAILED: ' + (e2.message || JSON.stringify(e2)), 'err');
+        }
+      }
+    }
+
+    test();
+  </script>
+</body>
+</html>
