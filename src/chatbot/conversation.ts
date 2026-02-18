@@ -1,14 +1,19 @@
+import Anthropic from '@anthropic-ai/sdk';
 import { db, schema } from '../db/index.js';
 import { eq, and } from 'drizzle-orm';
-import type { Platform, ConversationState, UnifiedMessage } from '../types/index.js';
+import { env } from '../config/env.js';
+import type { Platform, UnifiedMessage } from '../types/index.js';
 import { userService } from '../services/user.service.js';
 import { complaintService } from '../services/complaint.service.js';
 import { aiClassifier } from '../services/ai-classifier.service.js';
 import { notificationService } from '../services/notification.service.js';
 
+const anthropic = new Anthropic({ apiKey: env.anthropicApiKey });
+
 interface Session {
-  state: ConversationState;
+  messages: { role: 'user' | 'assistant'; content: string }[];
   data: Record<string, any>;
+  confirmed: boolean;
 }
 
 async function getSession(platformUserId: string, platform: Platform): Promise<Session> {
@@ -18,17 +23,27 @@ async function getSession(platformUserId: string, platform: Platform): Promise<S
       eq(schema.conversations.platform, platform),
     ));
 
-  if (row) return { state: row.state as ConversationState, data: JSON.parse(row.data) };
+  if (row) {
+    const parsed = JSON.parse(row.data);
+    return {
+      messages: parsed.messages || [],
+      data: parsed.data || {},
+      confirmed: parsed.confirmed || false,
+    };
+  }
 
   await db.insert(schema.conversations).values({
-    platformUserId, platform, state: 'idle', data: '{}',
+    platformUserId, platform, state: 'active', data: JSON.stringify({ messages: [], data: {}, confirmed: false }),
   });
-  return { state: 'idle', data: {} };
+  return { messages: [], data: {}, confirmed: false };
 }
 
 async function saveSession(platformUserId: string, platform: Platform, session: Session) {
   await db.update(schema.conversations)
-    .set({ state: session.state, data: JSON.stringify(session.data), updatedAt: new Date().toISOString() })
+    .set({
+      data: JSON.stringify(session),
+      updatedAt: new Date().toISOString(),
+    })
     .where(and(
       eq(schema.conversations.platformUserId, platformUserId),
       eq(schema.conversations.platform, platform),
@@ -36,12 +51,42 @@ async function saveSession(platformUserId: string, platform: Platform, session: 
 }
 
 async function resetSession(platformUserId: string, platform: Platform) {
-  await saveSession(platformUserId, platform, { state: 'idle', data: {} });
+  await saveSession(platformUserId, platform, { messages: [], data: {}, confirmed: false });
 }
 
-function isTracking(text: string): boolean {
-  return text.includes('ติดตาม') || text.toUpperCase().startsWith('CMP-');
-}
+const SYSTEM_PROMPT = `คุณชื่อ "น้องพลับ" เป็นผู้ช่วย AI ของเทศบาลตำบลพลับพลานารายณ์ จังหวัดจันทบุรี
+
+## บทบาท
+- รับเรื่องร้องเรียน/ร้องทุกข์จากประชาชน
+- สอบถามข้อมูลทั่วไปเกี่ยวกับเทศบาล
+- ติดตามสถานะคำร้อง
+
+## วิธีสนทนา
+- พูดภาษาไทยเป็นกันเอง สุภาพ ใช้ค่ะ/คะ
+- ตอบสั้นกระชับ ไม่เกิน 3 บรรทัด
+- ถ้าประชาชนแจ้งปัญหา ให้ค่อยๆ ถามข้อมูลที่ขาดแบบธรรมชาติ ไม่ต้องถามทีเดียวทุกอย่าง
+- ถ้าเขาบอกข้อมูลมาหลายอย่างในข้อความเดียว ให้รับทั้งหมดเลย ไม่ต้องถามซ้ำ
+
+## ข้อมูลที่ต้องเก็บให้ครบก่อนสร้างคำร้อง
+1. **issue** — ปัญหาอะไร (ต้องมี)
+2. **location** — สถานที่/ที่อยู่ (ต้องมี)
+3. **contactName** — ชื่อผู้แจ้ง (ต้องมี)
+4. **contactPhone** — เบอร์โทร (ต้องมี)
+5. **photo** — รูปถ่าย (ถามแต่ไม่บังคับ)
+
+## กฎสำคัญ
+- เมื่อได้ข้อมูลครบ 4 ข้อ (issue, location, contactName, contactPhone) → สรุปข้อมูลให้ประชาชนยืนยัน
+- ถ้าเขาพิมพ์มาว่า "ไฟหน้าบ้านดับ อยู่หมู่ 5 ชื่อสมศรี 089-123-4567" ให้รับทุกข้อมูลเลย ไม่ต้องถามทีละข้อ
+- ถ้าประชาชนแค่ทักทาย ให้ทักทายกลับแล้วถามว่ามีอะไรให้ช่วย
+- ถ้าถามเรื่องทั่วไป ตอบได้เลย เช่น เบอร์เทศบาล 0-3941-8498
+
+## ตอบเป็น JSON เสมอ:
+{"reply": "ข้อความตอบ", "extracted": {"issue": "...", "location": "...", "contactName": "...", "contactPhone": "...", "photo": "..."}, "readyToConfirm": false, "isConfirmed": false, "isTracking": "CMP-xxx หรือ null"}
+
+- **extracted**: ใส่เฉพาะข้อมูลที่ได้จากข้อความ ข้อไหนยังไม่ได้ใส่ null
+- **readyToConfirm**: true เมื่อได้ข้อมูลครบ 4 ข้อแล้วและกำลังสรุปให้ยืนยัน
+- **isConfirmed**: true เมื่อประชาชนพิมพ์ยืนยัน/ตกลง/โอเค
+- **isTracking**: ใส่ REF ID ถ้าประชาชนต้องการติดตามเรื่อง`;
 
 function getStatusText(status: string): string {
   const map: Record<string, string> = {
@@ -60,131 +105,90 @@ export async function handleCitizenMessage(msg: UnifiedMessage): Promise<string[
   const session = await getSession(msg.senderId, msg.platform);
   const text = msg.text?.trim() || '';
 
-  // Handle image in ask_photo state
-  if (msg.messageType === 'image' && session.state === 'ask_photo') {
+  // Handle image
+  if (msg.messageType === 'image') {
     session.data.photo = msg.imageUrl || 'received';
-    session.state = 'ask_contact';
-    await saveSession(msg.senderId, msg.platform, session);
-    return ['ได้รับรูปแล้วค่ะ 📷\n\nขอชื่อ-นามสกุล และเบอร์โทรติดต่อด้วยนะคะ\n(เช่น สมศรี มีสุข 089-xxx-xxxx)'];
+    session.messages.push({ role: 'user', content: '[ส่งรูปถ่าย]' });
+  } else {
+    session.messages.push({ role: 'user', content: text });
   }
 
-  switch (session.state) {
-    case 'idle': {
-      if (isTracking(text)) {
-        const refId = text.toUpperCase().match(/CMP-\d{8}-\d{4}/)?.[0];
-        if (refId) {
-          const complaint = await complaintService.getByRefId(refId);
-          if (complaint) {
-            return [`📋 คำร้อง ${refId}\nเรื่อง: ${complaint.issue}\nสถานะ: ${getStatusText(complaint.status)}${complaint.resultNote ? `\nหมายเหตุ: ${complaint.resultNote}` : ''}`];
-          }
-          return ['ไม่พบคำร้องหมายเลขนี้ค่ะ กรุณาตรวจสอบ REF ID อีกครั้งนะคะ'];
+  // Keep only last 20 messages to stay within context
+  if (session.messages.length > 20) {
+    session.messages = session.messages.slice(-20);
+  }
+
+  // Build context about what we've collected so far
+  const collectedInfo = Object.entries(session.data)
+    .filter(([_, v]) => v)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(', ');
+
+  const contextNote = collectedInfo
+    ? `\n\n[ข้อมูลที่เก็บได้แล้ว: ${collectedInfo}]`
+    : '';
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 500,
+      system: SYSTEM_PROMPT + contextNote,
+      messages: session.messages.map(m => ({ role: m.role, content: m.content })),
+    });
+
+    const aiText = response.content[0].type === 'text' ? response.content[0].text : '';
+
+    // Parse JSON response
+    let parsed: any;
+    try {
+      const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { reply: aiText };
+    } catch {
+      parsed = { reply: aiText };
+    }
+
+    const reply = parsed.reply || aiText;
+
+    // Store extracted data
+    if (parsed.extracted) {
+      for (const [key, value] of Object.entries(parsed.extracted)) {
+        if (value && value !== 'null') {
+          session.data[key] = value;
         }
-        session.state = 'tracking';
-        await saveSession(msg.senderId, msg.platform, session);
-        return ['กรุณาพิมพ์หมายเลข REF ID ที่ได้รับค่ะ (เช่น CMP-20260218-1234)'];
       }
-
-      session.state = 'greeting';
-      await saveSession(msg.senderId, msg.platform, session);
-      return [
-        `สวัสดีค่ะ 🙏 ยินดีต้อนรับสู่ระบบรับเรื่องร้องเรียน\nเทศบาลตำบลพลับพลานารายณ์\n\nมีอะไรให้ช่วยเหลือคะ?\n\n1️⃣ แจ้งเรื่องร้องเรียน/ร้องทุกข์\n2️⃣ สอบถามข้อมูล\n3️⃣ ติดตามเรื่องร้องเรียน (ใส่ REF ID)`,
-      ];
     }
 
-    case 'greeting': {
-      if (text.includes('1') || text.includes('แจ้ง') || text.includes('ร้องเรียน') || text.includes('ร้องทุกข์')) {
-        session.state = 'ask_issue';
-        await saveSession(msg.senderId, msg.platform, session);
-        return ['กรุณาอธิบายปัญหาที่พบค่ะ\n(เช่น ไฟทางดับ, ถนนพัง, ขยะไม่เก็บ, ท่อน้ำแตก)'];
-      }
-      if (text.includes('3') || text.includes('ติดตาม')) {
-        session.state = 'tracking';
-        await saveSession(msg.senderId, msg.platform, session);
-        return ['กรุณาพิมพ์หมายเลข REF ID ที่ได้รับค่ะ (เช่น CMP-20260218-1234)'];
-      }
-      if (text.includes('2') || text.includes('สอบถาม')) {
-        await resetSession(msg.senderId, msg.platform);
-        return ['สามารถสอบถามข้อมูลได้ที่\n📞 0-3941-8498\n🏢 เทศบาลตำบลพลับพลานารายณ์\n\nหรือพิมพ์ "สวัสดี" เพื่อเริ่มใหม่ค่ะ'];
-      }
-      // พิมพ์เรื่องมาเลย → ข้ามไปถามที่อยู่
-      session.state = 'ask_location';
-      session.data.issue = text;
-      await saveSession(msg.senderId, msg.platform, session);
-      return ['รับทราบค่ะ 📝\n\n📍 สถานที่เกิดปัญหาอยู่ที่ไหนคะ?\n(เช่น หมู่ 5 ซอย 3, หน้าวัดพลับพลา)'];
-    }
-
-    case 'ask_issue': {
-      session.data.issue = text;
-      session.state = 'ask_location';
-      await saveSession(msg.senderId, msg.platform, session);
-      return ['รับทราบค่ะ 📝\n\n📍 สถานที่เกิดปัญหาอยู่ที่ไหนคะ?\n(เช่น หมู่ 5 ซอย 3, หน้าวัดพลับพลา)'];
-    }
-
-    case 'ask_location': {
-      session.data.location = text;
-      if (msg.latitude && msg.longitude) {
-        session.data.latitude = msg.latitude;
-        session.data.longitude = msg.longitude;
-      }
-      session.state = 'ask_photo';
-      await saveSession(msg.senderId, msg.platform, session);
-      return ['📷 มีรูปถ่ายประกอบไหมคะ?\n\nส่งรูปได้เลย หรือพิมพ์ "ไม่มี" ค่ะ'];
-    }
-
-    case 'ask_photo': {
-      session.data.photo = (text.includes('ไม่มี') || text.includes('ไม่')) ? null : (msg.imageUrl || null);
-      session.state = 'ask_contact';
-      await saveSession(msg.senderId, msg.platform, session);
-      return ['ขอชื่อ-นามสกุล และเบอร์โทรติดต่อด้วยนะคะ\n(เช่น สมศรี มีสุข 089-123-4567)'];
-    }
-
-    case 'ask_contact': {
-      const phoneMatch = text.match(/(\d{2,3}[-.]?\d{3}[-.]?\d{4})/);
-      session.data.contactName = text.replace(phoneMatch?.[0] || '', '').trim() || text;
-      session.data.contactPhone = phoneMatch ? phoneMatch[1] : '';
-      session.state = 'confirm';
-      await saveSession(msg.senderId, msg.platform, session);
-
-      return [[
-        '📋 สรุปคำร้อง:',
-        `📌 เรื่อง: ${session.data.issue}`,
-        `📍 สถานที่: ${session.data.location}`,
-        `👤 ผู้แจ้ง: ${session.data.contactName}`,
-        `📞 เบอร์: ${session.data.contactPhone || '-'}`,
-        `📷 รูป: ${session.data.photo ? 'มี' : 'ไม่มี'}`,
-        '',
-        'ข้อมูลถูกต้องไหมคะ?',
-        'พิมพ์ "ยืนยัน" หรือ "แก้ไข" ค่ะ',
-      ].join('\n')];
-    }
-
-    case 'confirm': {
-      if (text.includes('ยืนยัน') || text.includes('ถูก') || text.includes('ใช่') || text.includes('ok')) {
-        return await createComplaint(msg, session);
-      }
-      if (text.includes('แก้ไข') || text.includes('แก้') || text.includes('ใหม่')) {
-        session.state = 'ask_issue';
-        session.data = {};
-        await saveSession(msg.senderId, msg.platform, session);
-        return ['เริ่มใหม่ค่ะ กรุณาอธิบายปัญหาที่พบค่ะ'];
-      }
-      return ['กรุณาพิมพ์ "ยืนยัน" หรือ "แก้ไข" ค่ะ'];
-    }
-
-    case 'tracking': {
-      const refId = text.toUpperCase().match(/CMP-\d{8}-\d{4}/)?.[0] || text.toUpperCase().trim();
-      const complaint = await complaintService.getByRefId(refId);
-      await resetSession(msg.senderId, msg.platform);
-
+    // Handle tracking
+    if (parsed.isTracking) {
+      const complaint = await complaintService.getByRefId(parsed.isTracking);
       if (complaint) {
-        return [`📋 คำร้อง ${refId}\nเรื่อง: ${complaint.issue}\nสถานะ: ${getStatusText(complaint.status)}${complaint.resultNote ? `\nหมายเหตุ: ${complaint.resultNote}` : ''}\n\nพิมพ์ "สวัสดี" เพื่อเริ่มใหม่ค่ะ`];
+        const statusText = getStatusText(complaint.status);
+        const trackReply = `📋 คำร้อง ${complaint.refId}\nเรื่อง: ${complaint.issue}\nสถานะ: ${statusText}${complaint.resultNote ? `\nหมายเหตุ: ${complaint.resultNote}` : ''}`;
+        session.messages.push({ role: 'assistant', content: trackReply });
+        await saveSession(msg.senderId, msg.platform, session);
+        return [trackReply];
+      } else {
+        const notFound = 'ไม่พบคำร้องหมายเลขนี้ค่ะ กรุณาตรวจสอบ REF ID อีกครั้งนะคะ';
+        session.messages.push({ role: 'assistant', content: notFound });
+        await saveSession(msg.senderId, msg.platform, session);
+        return [notFound];
       }
-      return ['ไม่พบคำร้องหมายเลขนี้ค่ะ กรุณาตรวจสอบ REF ID อีกครั้ง\n\nพิมพ์ "สวัสดี" เพื่อเริ่มใหม่ค่ะ'];
     }
 
-    default:
+    // Handle confirmed complaint
+    if (parsed.isConfirmed && session.data.issue && session.data.location && session.data.contactName) {
+      const result = await createComplaint(msg, session);
       await resetSession(msg.senderId, msg.platform);
-      return ['เกิดข้อผิดพลาดค่ะ กรุณาพิมพ์ "สวัสดี" เพื่อเริ่มใหม่นะคะ'];
+      return result;
+    }
+
+    session.messages.push({ role: 'assistant', content: reply });
+    await saveSession(msg.senderId, msg.platform, session);
+    return [reply];
+
+  } catch (e) {
+    console.error('AI conversation error:', e);
+    return ['ขออภัยค่ะ ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งนะคะ 🙏'];
   }
 }
 
@@ -201,7 +205,6 @@ async function createComplaint(msg: UnifiedMessage, session: Session): Promise<s
   const dept = await aiClassifier.getDepartmentByCode(classification.department);
 
   if (!dept) {
-    await resetSession(msg.senderId, msg.platform);
     return ['ขออภัยค่ะ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้งนะคะ'];
   }
 
@@ -223,7 +226,6 @@ async function createComplaint(msg: UnifiedMessage, session: Session): Promise<s
   });
 
   await notificationService.notifyNewComplaint(complaint, dept, user);
-  await resetSession(msg.senderId, msg.platform);
 
   return [
     `รับเรื่องเรียบร้อยค่ะ ✅\n\n📌 REF ID: ${complaint.refId}\n🏢 ส่งเรื่องไปที่: ${dept.name}\n📊 สถานะ: รอกองรับเรื่อง\n\nสามารถติดตามสถานะได้ โดยพิมพ์ REF ID ได้ตลอดค่ะ 🙏`,
