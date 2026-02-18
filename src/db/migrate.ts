@@ -53,6 +53,9 @@ const tables = [
     ai_confidence REAL,
     status TEXT NOT NULL DEFAULT 'pending',
     assigned_officer_id INTEGER REFERENCES officers(id),
+    accepted_by TEXT,
+    accept_note TEXT,
+    scheduled_date TEXT,
     result_status TEXT,
     result_note TEXT,
     result_photo_url TEXT,
@@ -91,10 +94,19 @@ const tables = [
   )`,
 ];
 
+const alterations = [
+  `ALTER TABLE complaints ADD COLUMN accepted_by TEXT`,
+  `ALTER TABLE complaints ADD COLUMN accept_note TEXT`,
+  `ALTER TABLE complaints ADD COLUMN scheduled_date TEXT`,
+];
+
 export async function runMigrations() {
   console.log('  📦 Running migrations...');
   for (const sql of tables) {
     await client.execute(sql);
+  }
+  for (const sql of alterations) {
+    try { await client.execute(sql); } catch { /* column already exists */ }
   }
   console.log('  ✅ Tables ready');
 }

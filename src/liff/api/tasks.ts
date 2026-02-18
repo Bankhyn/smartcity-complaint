@@ -19,6 +19,37 @@ tasksApi.get('/dispatched/:officerId', async (req, res) => {
   res.json(tasks);
 });
 
+// GET /api/tasks/complaint/:refId — ดึงข้อมูลคำร้องสำหรับหน้ารับเรื่อง
+tasksApi.get('/complaint/:refId', async (req, res) => {
+  const complaint = await complaintService.getByRefId(req.params.refId);
+  if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
+  res.json(complaint);
+});
+
+// POST /api/tasks/accept — รับเรื่อง + มอบหมาย + กำหนดวัน
+tasksApi.post('/accept', async (req, res) => {
+  const { refId, acceptedBy, assignedOfficerId, scheduledDate, acceptNote } = req.body as {
+    refId: string;
+    acceptedBy: string;
+    assignedOfficerId?: number;
+    scheduledDate?: string;
+    acceptNote?: string;
+  };
+
+  const complaint = await complaintService.getByRefId(refId);
+  if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
+  if (complaint.status !== 'pending') return res.status(400).json({ error: 'Complaint already processed' });
+
+  await complaintService.accept(complaint.id, {
+    acceptedBy,
+    assignedOfficerId: assignedOfficerId || undefined,
+    scheduledDate: scheduledDate || undefined,
+    acceptNote: acceptNote || undefined,
+  });
+
+  res.json({ success: true, refId: complaint.refId });
+});
+
 // POST /api/tasks/dispatch
 tasksApi.post('/dispatch', async (req, res) => {
   const { officerId, complaintIds } = req.body as { officerId: number; complaintIds: number[] };

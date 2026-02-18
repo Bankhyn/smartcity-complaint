@@ -8,7 +8,7 @@ export function complaintCardFlex(complaint: {
   contactPhone?: string | null;
   photoUrl?: string | null;
   createdAt: string;
-}, departmentName: string, platform: string) {
+}, departmentName: string, platform: string, liffId?: string) {
   return {
     type: 'flex' as const,
     altText: `คำร้องใหม่ ${complaint.refId}`,
@@ -50,8 +50,12 @@ export function complaintCardFlex(complaint: {
             type: 'button',
             style: 'primary',
             color: '#4CAF50',
-            action: {
-              type: 'postback',
+            action: liffId ? {
+              type: 'uri' as const,
+              label: '✅ รับเรื่อง',
+              uri: `https://liff.line.me/${liffId}/accept.html?ref=${complaint.refId}`,
+            } : {
+              type: 'postback' as const,
               label: '✅ รับเรื่อง',
               displayText: `รับเรื่อง ${complaint.refId}`,
               data: `action=accept&complaintId=${complaint.refId}`,

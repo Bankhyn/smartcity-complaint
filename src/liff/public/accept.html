@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รับเรื่องคำร้อง</title>
+  <link rel="stylesheet" href="/liff/css/style.css">
+  <style>
+    .complaint-detail {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .complaint-detail .ref {
+      color: #2196F3;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+    .complaint-detail .issue {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 12px;
+    }
+    .detail-row {
+      display: flex;
+      padding: 4px 0;
+      font-size: 0.9rem;
+    }
+    .detail-row .label {
+      color: #999;
+      width: 80px;
+      flex-shrink: 0;
+    }
+    .detail-row .value {
+      flex: 1;
+    }
+    .section-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin: 16px 0 8px;
+      color: #333;
+    }
+    input[type="date"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📋 รับเรื่องคำร้อง</h1>
+
+    <div id="loading" class="loading">กำลังโหลด...</div>
+
+    <div id="content" class="hidden">
+      <!-- ข้อมูลคำร้อง -->
+      <div class="complaint-detail" id="complaintDetail"></div>
+
+      <!-- ฟอร์มรับเรื่อง -->
+      <div class="section-title">มอบหมายเจ้าหน้าที่ (ไม่บังคับ)</div>
+      <div class="form-group">
+        <select id="officer">
+          <option value="">-- ยังไม่มอบหมาย --</option>
+        </select>
+      </div>
+
+      <div class="section-title">กำหนดวันปฏิบัติงาน (ไม่บังคับ)</div>
+      <div class="form-group">
+        <input type="date" id="scheduledDate">
+      </div>
+
+      <div class="section-title">หมายเหตุ (ไม่บังคับ)</div>
+      <div class="form-group">
+        <textarea id="note" rows="2" placeholder="เช่น ให้ช่างไฟไปดู, ต้องประสานงานกับการไฟฟ้า..."></textarea>
+      </div>
+
+      <button id="acceptBtn" class="btn btn-primary" onclick="acceptComplaint()">
+        ✅ รับเรื่อง
+      </button>
+    </div>
+
+    <div id="result" class="result hidden"></div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    let refId = null;
+    let complaint = null;
+    let lineUserId = null;
+
+    async function init() {
+      const config = await fetch('/api/config').then(r => r.json());
+      await liff.init({ liffId: config.liffId });
+
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
+      const profile = await liff.getProfile();
+      lineUserId = profile.userId;
+
+      // ดึง refId จาก URL
+      const params = new URLSearchParams(window.location.search);
+      refId = params.get('ref');
+
+      if (!refId) {
+        showError('ไม่พบข้อมูลคำร้อง');
+        return;
+      }
+
+      // โหลดข้อมูลคำร้อง
+      const res = await fetch(`/api/tasks/complaint/${encodeURIComponent(refId)}`);
+      if (!res.ok) {
+        showError('ไม่พบคำร้อง ' + refId);
+        return;
+      }
+      complaint = await res.json();
+
+      if (complaint.status !== 'pending') {
+        showError('คำร้องนี้ถูกรับเรื่องแล้ว');
+        return;
+      }
+
+      // แสดงข้อมูลคำร้อง
+      renderComplaint();
+
+      // โหลดรายชื่อเจ้าหน้าที่ในกอง
+      if (complaint.departmentId) {
+        const officersRes = await fetch(`/api/officers/by-department/${complaint.departmentId}`);
+        if (officersRes.ok) {
+          const officers = await officersRes.json();
+          const select = document.getElementById('officer');
+          officers.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.id;
+            opt.textContent = `${o.name}${o.position ? ' (' + o.position + ')' : ''} - ${o.phone}`;
+            select.appendChild(opt);
+          });
+        }
+      }
+
+      // ตั้งวันที่เริ่มต้นเป็นวันนี้
+      document.getElementById('scheduledDate').value = new Date().toISOString().slice(0, 10);
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+    }
+
+    function renderComplaint() {
+      const c = complaint;
+      const date = new Date(c.createdAt).toLocaleDateString('th-TH', {
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+
+      document.getElementById('complaintDetail').innerHTML = `
+        <div class="ref">${c.refId}</div>
+        <div class="issue">${c.issue}</div>
+        <div class="detail-row"><span class="label">หมวด</span><span class="value">${c.category || '-'}</span></div>
+        <div class="detail-row"><span class="label">สถานที่</span><span class="value">${c.location || '-'}</span></div>
+        <div class="detail-row"><span class="label">ผู้แจ้ง</span><span class="value">${c.contactName || '-'}</span></div>
+        <div class="detail-row"><span class="label">เบอร์โทร</span><span class="value">${c.contactPhone || '-'}</span></div>
+        <div class="detail-row"><span class="label">วันที่แจ้ง</span><span class="value">${date}</span></div>
+      `;
+    }
+
+    async function acceptComplaint() {
+      const btn = document.getElementById('acceptBtn');
+      btn.disabled = true;
+      btn.textContent = 'กำลังรับเรื่อง...';
+
+      const officerId = document.getElementById('officer').value;
+      const scheduledDate = document.getElementById('scheduledDate').value;
+      const note = document.getElementById('note').value;
+
+      const res = await fetch('/api/tasks/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          refId,
+          acceptedBy: lineUserId,
+          assignedOfficerId: officerId ? Number(officerId) : undefined,
+          scheduledDate: scheduledDate || undefined,
+          acceptNote: note || undefined,
+        }),
+      });
+      const data = await res.json();
+
+      const result = document.getElementById('result');
+      result.classList.remove('hidden');
+      document.getElementById('content').classList.add('hidden');
+
+      if (data.success) {
+        result.innerHTML = `✅ รับเรื่อง ${refId} เรียบร้อย!`;
+        result.className = 'result success';
+        setTimeout(() => liff.closeWindow(), 2000);
+      } else {
+        result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
+        result.className = 'result error';
+        btn.disabled = false;
+        btn.textContent = '✅ รับเรื่อง';
+        document.getElementById('content').classList.remove('hidden');
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('loading').classList.add('hidden');
+      const result = document.getElementById('result');
+      result.innerHTML = msg;
+      result.className = 'result error';
+      result.classList.remove('hidden');
+    }
+
+    init();
+  </script>
+</body>
+</html>

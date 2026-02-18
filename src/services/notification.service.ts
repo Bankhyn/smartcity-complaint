@@ -15,7 +15,7 @@ export const notificationService = {
 
     const deptGroupId = env.lineGroups[department.code];
     if (deptGroupId) {
-      const cardFlex = complaintCardFlex(complaint, department.name, complaint.platform);
+      const cardFlex = complaintCardFlex(complaint, department.name, complaint.platform, env.liffId);
       await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
     }
   },
@@ -23,7 +23,7 @@ export const notificationService = {
   async notifyTransfer(complaint: any, newDepartment: any, fromDepartmentName: string) {
     const deptGroupId = env.lineGroups[newDepartment.code];
     if (deptGroupId) {
-      const cardFlex = complaintCardFlex(complaint, newDepartment.name, complaint.platform);
+      const cardFlex = complaintCardFlex(complaint, newDepartment.name, complaint.platform, env.liffId);
       await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
     }
 

@@ -59,8 +59,13 @@ export const complaints = sqliteTable('complaints', {
   aiConfidence: real('ai_confidence'),
   status: text('status').notNull().default('pending'),
 
-  // ผลดำเนินงาน
+  // การรับเรื่อง
   assignedOfficerId: integer('assigned_officer_id').references(() => officers.id),
+  acceptedBy: text('accepted_by'),                  // LINE userId ของหัวหน้ากองที่รับ
+  acceptNote: text('accept_note'),                   // หมายเหตุตอนรับเรื่อง
+  scheduledDate: text('scheduled_date'),             // วันกำหนดปฏิบัติงาน
+
+  // ผลดำเนินงาน
   resultStatus: text('result_status'),             // completed | waiting | failed
   resultNote: text('result_note'),                 // หมายเหตุ
   resultPhotoUrl: text('result_photo_url'),        // รูปผลงาน

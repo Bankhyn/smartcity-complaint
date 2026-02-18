@@ -18,7 +18,8 @@ export async function handleGroupPostback(msg: UnifiedMessage) {
 
   switch (action) {
     case 'accept': {
-      await complaintService.accept(complaint.id, msg.senderId);
+      // เปิด LIFF หน้ารับเรื่อง (ถูกเปลี่ยนเป็น URI action แล้ว — fallback สำหรับ postback เก่า)
+      await complaintService.accept(complaint.id, { acceptedBy: msg.senderId });
       if (msg.replyToken) {
         await lineAdapter.replyText(msg.replyToken, `✅ รับเรื่อง ${complaintRefId} เรียบร้อย`);
       }

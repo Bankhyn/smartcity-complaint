@@ -47,12 +47,24 @@ export const complaintService = {
     return row;
   },
 
-  async accept(complaintId: number, officerId?: string) {
+  async accept(complaintId: number, data?: {
+    acceptedBy?: string;
+    assignedOfficerId?: number;
+    scheduledDate?: string;
+    acceptNote?: string;
+  }) {
     await db.update(schema.complaints)
-      .set({ status: 'accepted', acceptedAt: new Date().toISOString() })
+      .set({
+        status: 'accepted',
+        acceptedAt: new Date().toISOString(),
+        acceptedBy: data?.acceptedBy,
+        assignedOfficerId: data?.assignedOfficerId,
+        scheduledDate: data?.scheduledDate,
+        acceptNote: data?.acceptNote,
+      })
       .where(eq(schema.complaints.id, complaintId));
 
-    await this.logStatus(complaintId, 'pending', 'accepted', 'accepted', 'officer', officerId);
+    await this.logStatus(complaintId, 'pending', 'accepted', 'accepted', 'officer', data?.acceptedBy, data?.acceptNote);
   },
 
   async transfer(complaintId: number, newDepartmentId: number, rejectedBy?: string) {

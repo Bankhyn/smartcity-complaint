@@ -18,6 +18,12 @@ officersApi.post('/register', async (req, res) => {
   res.json({ success: true, officer });
 });
 
+// GET /api/officers/by-department/:departmentId
+officersApi.get('/by-department/:departmentId', async (req, res) => {
+  const officers = await officerService.getByDepartment(Number(req.params.departmentId));
+  res.json(officers);
+});
+
 // GET /api/officers/:lineUserId
 officersApi.get('/:lineUserId', async (req, res) => {
   const officer = await officerService.getByLineUserId(req.params.lineUserId);
