@@ -41,14 +41,21 @@
     async function init() {
       try {
         const config = await fetch('/api/config').then(r => r.json());
-        await liff.init({ liffId: config.liffId });
+        console.log('LIFF config:', config);
 
-        // ดึง profile — ถ้าอยู่ใน LINE app จะได้เลย ถ้าไม่อยู่จะ login
+        if (!config.liffId) {
+          showError('ไม่พบ LIFF ID — กรุณาตั้งค่า LIFF_ID ใน Environment Variables');
+          return;
+        }
+
+        await liff.init({ liffId: config.liffId });
+        console.log('LIFF init success, isInClient:', liff.isInClient(), 'isLoggedIn:', liff.isLoggedIn());
+
         if (!liff.isLoggedIn()) {
           if (!liff.isInClient()) {
             liff.login({ redirectUri: window.location.href });
           } else {
-            showError('ไม่สามารถ login ได้ กรุณาเปิดผ่าน LINE');
+            showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ผ่าน LINE อีกครั้ง');
           }
           return;
         }
@@ -71,7 +78,8 @@
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('registerForm').classList.remove('hidden');
       } catch (err) {
-        showError('เกิดข้อผิดพลาด: ' + err.message);
+        console.error('LIFF init error:', err);
+        showError('LIFF Error: ' + (err.message || JSON.stringify(err)));
       }
     }
 
