@@ -10,10 +10,11 @@
   <div class="container">
     <h1>📝 ลงทะเบียนเจ้าหน้าที่</h1>
     <div id="loading" class="loading">กำลังโหลด...</div>
-    <form id="registerForm" class="hidden">
+
+    <div id="formSection" class="hidden">
       <div class="form-group">
         <label>ชื่อ-นามสกุล</label>
-        <input type="text" id="name" required placeholder="สมชาย ใจดี">
+        <input type="text" id="name" placeholder="สมชาย ใจดี">
       </div>
       <div class="form-group">
         <label>ตำแหน่ง</label>
@@ -21,16 +22,17 @@
       </div>
       <div class="form-group">
         <label>เบอร์โทรศัพท์</label>
-        <input type="tel" id="phone" required placeholder="089-123-4567">
+        <input type="tel" id="phone" placeholder="089-123-4567">
       </div>
       <div class="form-group">
         <label>สังกัดกอง</label>
-        <select id="department" required>
+        <select id="department">
           <option value="">-- เลือกกอง --</option>
         </select>
       </div>
-      <button type="submit" class="btn btn-primary">💾 ลงทะเบียน</button>
-    </form>
+      <button id="submitBtn" class="btn btn-primary" type="button">💾 ลงทะเบียน</button>
+    </div>
+
     <div id="result" class="result hidden"></div>
   </div>
 
@@ -41,21 +43,28 @@
     async function init() {
       try {
         const config = await fetch('/api/config').then(r => r.json());
-        console.log('LIFF config:', config);
 
         if (!config.liffId) {
-          showError('ไม่พบ LIFF ID — กรุณาตั้งค่า LIFF_ID ใน Environment Variables');
+          showError('ไม่พบ LIFF ID');
           return;
         }
 
         await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
-        console.log('LIFF init success, isInClient:', liff.isInClient(), 'isLoggedIn:', liff.isLoggedIn());
 
         if (!liff.isLoggedIn()) {
-          // withLoginOnExternalBrowser จะ auto redirect ไป login
-          // ถ้ายังไม่ login แสดงว่ากำลัง redirect อยู่
+          // กำลัง redirect ไป login อยู่ — ถ้าวนซ้ำ 3 รอบให้หยุด
+          const attempts = Number(sessionStorage.getItem('liff_login_attempts') || 0);
+          if (attempts >= 2) {
+            sessionStorage.removeItem('liff_login_attempts');
+            showError('ไม่สามารถ login ได้ กรุณาเปิดลิงก์ผ่านแชท LINE');
+            return;
+          }
+          sessionStorage.setItem('liff_login_attempts', String(attempts + 1));
           return;
         }
+
+        // Login สำเร็จ — reset counter
+        sessionStorage.removeItem('liff_login_attempts');
 
         const profile = await liff.getProfile();
         lineUserId = profile.userId;
@@ -73,10 +82,10 @@
         });
 
         document.getElementById('loading').classList.add('hidden');
-        document.getElementById('registerForm').classList.remove('hidden');
+        document.getElementById('formSection').classList.remove('hidden');
+
       } catch (err) {
-        console.error('LIFF init error:', err);
-        showError('LIFF Error: ' + (err.message || JSON.stringify(err)));
+        showError('Error: ' + (err.message || JSON.stringify(err)));
       }
     }
 
@@ -88,39 +97,46 @@
       result.classList.remove('hidden');
     }
 
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = e.target.querySelector('button[type="submit"]');
+    // ปุ่มลงทะเบียน — ไม่ใช้ form submit เพื่อป้องกัน reload
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const departmentId = document.getElementById('department').value;
+
+      if (!name) { alert('กรุณากรอกชื่อ'); return; }
+      if (!phone) { alert('กรุณากรอกเบอร์โทร'); return; }
+      if (!departmentId) { alert('กรุณาเลือกกอง'); return; }
+
+      const btn = document.getElementById('submitBtn');
       btn.disabled = true;
       btn.textContent = 'กำลังลงทะเบียน...';
-
-      const body = {
-        lineUserId,
-        name: document.getElementById('name').value,
-        position: document.getElementById('position').value,
-        phone: document.getElementById('phone').value,
-        departmentId: document.getElementById('department').value,
-      };
 
       try {
         const res = await fetch('/api/officers/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            lineUserId,
+            name,
+            position: document.getElementById('position').value.trim(),
+            phone,
+            departmentId,
+          }),
         });
         const data = await res.json();
 
         const result = document.getElementById('result');
         result.classList.remove('hidden');
-        document.getElementById('registerForm').classList.add('hidden');
+        document.getElementById('formSection').classList.add('hidden');
+
         if (data.success) {
           result.innerHTML = '✅ ลงทะเบียนสำเร็จ!';
           result.className = 'result success';
-          setTimeout(() => { if (liff.isInClient()) liff.closeWindow(); }, 1500);
+          setTimeout(() => { try { liff.closeWindow(); } catch(e) {} }, 1500);
         } else {
           result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
           result.className = 'result error';
-          document.getElementById('registerForm').classList.remove('hidden');
+          document.getElementById('formSection').classList.remove('hidden');
           btn.disabled = false;
           btn.textContent = '💾 ลงทะเบียน';
         }
