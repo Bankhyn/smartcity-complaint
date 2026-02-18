@@ -1,0 +1,71 @@
+import { env } from '../config/env.js';
+import { db, schema } from '../db/index.js';
+import { eq } from 'drizzle-orm';
+import { complaintCardFlex, complaintNotifyFlex, departmentSelectFlex, resultNotifyFlex, dispatchNotifyFlex } from '../flex-messages/complaint-card.js';
+import { lineAdapter } from '../adapters/line.adapter.js';
+import { facebookAdapter } from '../adapters/facebook.adapter.js';
+
+export const notificationService = {
+  async notifyNewComplaint(complaint: any, department: any, user: any) {
+    const secretaryGroupId = env.lineGroups.secretary;
+    if (secretaryGroupId) {
+      const notifyFlex = complaintNotifyFlex(complaint, department.name);
+      await lineAdapter.pushFlexMessage(secretaryGroupId, notifyFlex);
+    }
+
+    const deptGroupId = env.lineGroups[department.code];
+    if (deptGroupId) {
+      const cardFlex = complaintCardFlex(complaint, department.name, complaint.platform);
+      await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
+    }
+  },
+
+  async notifyTransfer(complaint: any, newDepartment: any, fromDepartmentName: string) {
+    const deptGroupId = env.lineGroups[newDepartment.code];
+    if (deptGroupId) {
+      const cardFlex = complaintCardFlex(complaint, newDepartment.name, complaint.platform);
+      await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
+    }
+
+    const secretaryGroupId = env.lineGroups.secretary;
+    if (secretaryGroupId) {
+      await lineAdapter.pushText(secretaryGroupId,
+        `🔄 ${complaint.refId} โอนจาก${fromDepartmentName} → ${newDepartment.name}`);
+    }
+  },
+
+  async sendDepartmentSelect(groupId: string, complaintRefId: string) {
+    const departments = await db.select().from(schema.departments);
+    const deptList = departments.map(d => ({ code: d.code, name: d.name }));
+    const flex = departmentSelectFlex(complaintRefId, deptList);
+    await lineAdapter.pushFlexMessage(groupId, flex);
+  },
+
+  async notifyDispatch(complaint: any, officer: any) {
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, complaint.userId));
+    if (!user) return;
+
+    if (user.lineUserId) {
+      const flex = dispatchNotifyFlex(complaint, officer.name, officer.phone);
+      await lineAdapter.pushFlexMessage(user.lineUserId, flex);
+    } else if (user.facebookPsid) {
+      await facebookAdapter.sendText(user.facebookPsid,
+        `🔔 แจ้งเตือนจากเทศบาลพลับพลานารายณ์\n\nคำร้อง: ${complaint.refId}\nเรื่อง: ${complaint.issue}\n\n✅ เจ้าหน้าที่กำลังออกปฏิบัติงานแล้วค่ะ\n👷 ช่าง${officer.name}\n📞 ${officer.phone}\n\nหากมีสายโทรเข้าจากเบอร์นี้ กรุณารับสายด้วยนะคะ 🙏`);
+    }
+  },
+
+  async notifyResult(complaint: any) {
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, complaint.userId));
+    if (!user) return;
+
+    if (user.lineUserId) {
+      const flex = resultNotifyFlex(complaint);
+      await lineAdapter.pushFlexMessage(user.lineUserId, flex);
+    } else if (user.facebookPsid) {
+      const statusText = complaint.resultStatus === 'completed' ? '✅ ดำเนินการสำเร็จ'
+        : complaint.resultStatus === 'waiting' ? '⏳ รอดำเนินการ' : '❌ ไม่สำเร็จ';
+      await facebookAdapter.sendText(user.facebookPsid,
+        `📢 ผลดำเนินงาน\nคำร้อง: ${complaint.refId}\nเรื่อง: ${complaint.issue}\n\nสถานะ: ${statusText}${complaint.resultNote ? `\nหมายเหตุ: ${complaint.resultNote}` : ''}`);
+    }
+  },
+};

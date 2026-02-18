@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ออกปฏิบัติงาน</title>
+  <link rel="stylesheet" href="/liff/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>📋 เลือกงานออกปฏิบัติงาน</h1>
+    <div id="taskList" class="task-list">
+      <p class="loading">กำลังโหลด...</p>
+    </div>
+    <button id="dispatchBtn" class="btn btn-primary hidden" onclick="dispatch()">
+      ✅ รับงานที่เลือก (<span id="selectedCount">0</span> งาน)
+    </button>
+    <div id="result" class="result hidden"></div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    let officerId = null;
+    let tasks = [];
+
+    async function init() {
+      await liff.init({ liffId: getLiffId() });
+      const params = new URLSearchParams(window.location.search);
+      officerId = params.get('officerId');
+
+      if (!officerId) {
+        document.getElementById('taskList').innerHTML = '<p class="error">ไม่พบข้อมูลเจ้าหน้าที่</p>';
+        return;
+      }
+
+      // Load officer info to get department
+      const officerRes = await fetch(`/api/officers/${encodeURIComponent(officerId)}`);
+      if (!officerRes.ok) {
+        // Try getting by LINE userId
+        const profile = await liff.getProfile();
+        const res2 = await fetch(`/api/officers/${profile.userId}`);
+        if (!res2.ok) {
+          document.getElementById('taskList').innerHTML = '<p class="error">กรุณาลงทะเบียนก่อน</p>';
+          return;
+        }
+        const officer = await res2.json();
+        officerId = officer.id;
+      }
+
+      // Load pending tasks
+      const res = await fetch(`/api/tasks/pending/${officerId}`);
+      tasks = await res.json();
+
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('taskList');
+      if (tasks.length === 0) {
+        container.innerHTML = '<p class="empty">ไม่มีงานรอดำเนินการ ✨</p>';
+        return;
+      }
+
+      container.innerHTML = tasks.map(t => `
+        <label class="task-card">
+          <input type="checkbox" value="${t.id}" onchange="updateCount()">
+          <div class="task-info">
+            <div class="task-ref">${t.refId}</div>
+            <div class="task-issue">${t.issue}</div>
+            <div class="task-location">📍 ${t.location || '-'}</div>
+            <div class="task-contact">👤 ${t.contactName || '-'} ${t.contactPhone ? '📞 ' + t.contactPhone : ''}</div>
+          </div>
+        </label>
+      `).join('');
+
+      document.getElementById('dispatchBtn').classList.remove('hidden');
+    }
+
+    function updateCount() {
+      const checked = document.querySelectorAll('.task-card input:checked').length;
+      document.getElementById('selectedCount').textContent = checked;
+    }
+
+    async function dispatch() {
+      const checked = Array.from(document.querySelectorAll('.task-card input:checked'));
+      const complaintIds = checked.map(el => Number(el.value));
+
+      if (complaintIds.length === 0) {
+        alert('กรุณาเลือกอย่างน้อย 1 งาน');
+        return;
+      }
+
+      document.getElementById('dispatchBtn').disabled = true;
+      document.getElementById('dispatchBtn').textContent = 'กำลังส่ง...';
+
+      const res = await fetch('/api/tasks/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ officerId: Number(officerId), complaintIds }),
+      });
+      const data = await res.json();
+
+      const result = document.getElementById('result');
+      result.classList.remove('hidden');
+      if (data.success) {
+        result.innerHTML = `✅ รับงาน ${data.dispatched.length} งานเรียบร้อย!<br>${data.dispatched.join(', ')}`;
+        result.className = 'result success';
+        setTimeout(() => liff.closeWindow(), 2000);
+      } else {
+        result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
+        result.className = 'result error';
+        document.getElementById('dispatchBtn').disabled = false;
+        document.getElementById('dispatchBtn').textContent = '✅ รับงานที่เลือก';
+      }
+    }
+
+    function getLiffId() {
+      return document.querySelector('meta[name="liff-id"]')?.content || '';
+    }
+
+    init();
+  </script>
+</body>
+</html>

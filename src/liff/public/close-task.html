@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ปิดงาน</title>
+  <link rel="stylesheet" href="/liff/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>📋 ปิดงาน</h1>
+    <div id="taskList" class="task-list">
+      <p class="loading">กำลังโหลด...</p>
+    </div>
+    <div id="closeForm" class="hidden">
+      <h2 id="selectedTaskRef"></h2>
+      <div class="form-group">
+        <label>ผลดำเนินงาน</label>
+        <div class="radio-group">
+          <label class="radio-card success">
+            <input type="radio" name="status" value="completed">
+            <span>✅ สำเร็จ</span>
+          </label>
+          <label class="radio-card warning">
+            <input type="radio" name="status" value="waiting">
+            <span>⏳ รอดำเนินงาน</span>
+          </label>
+          <label class="radio-card danger">
+            <input type="radio" name="status" value="failed">
+            <span>❌ ไม่สำเร็จ</span>
+          </label>
+        </div>
+      </div>
+      <div id="noteSection" class="form-group hidden">
+        <label id="noteLabel">หมายเหตุ</label>
+        <textarea id="note" rows="3" placeholder="เช่น รออะไหล่, เจ้าบ้านไม่รับสาย..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="closeTask()">💾 บันทึกผล</button>
+    </div>
+    <div id="result" class="result hidden"></div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    let officerId = null;
+    let selectedComplaintId = null;
+    let tasks = [];
+
+    async function init() {
+      await liff.init({ liffId: getLiffId() });
+      const params = new URLSearchParams(window.location.search);
+      officerId = params.get('officerId');
+
+      if (!officerId) {
+        document.getElementById('taskList').innerHTML = '<p class="error">ไม่พบข้อมูลเจ้าหน้าที่</p>';
+        return;
+      }
+
+      const res = await fetch(`/api/tasks/dispatched/${officerId}`);
+      tasks = await res.json();
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('taskList');
+      if (tasks.length === 0) {
+        container.innerHTML = '<p class="empty">ไม่มีงานที่รอปิด ✨</p>';
+        return;
+      }
+
+      container.innerHTML = tasks.map(t => `
+        <div class="task-card clickable" onclick="selectTask(${t.id}, '${t.refId}')">
+          <div class="task-info">
+            <div class="task-ref">${t.refId}</div>
+            <div class="task-issue">${t.issue}</div>
+            <div class="task-location">📍 ${t.location || '-'}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function selectTask(id, refId) {
+      selectedComplaintId = id;
+      document.getElementById('selectedTaskRef').textContent = refId;
+      document.getElementById('closeForm').classList.remove('hidden');
+      document.getElementById('taskList').classList.add('hidden');
+    }
+
+    // Show/hide note based on status
+    document.querySelectorAll('input[name="status"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        const noteSection = document.getElementById('noteSection');
+        const noteLabel = document.getElementById('noteLabel');
+        if (e.target.value === 'completed') {
+          noteSection.classList.add('hidden');
+        } else {
+          noteSection.classList.remove('hidden');
+          noteLabel.textContent = e.target.value === 'waiting' ? 'สาเหตุที่รอ (เช่น รออะไหล่)' : 'สาเหตุที่ไม่สำเร็จ (เช่น เจ้าบ้านไม่รับสาย)';
+        }
+      });
+    });
+
+    async function closeTask() {
+      const status = document.querySelector('input[name="status"]:checked')?.value;
+      if (!status) {
+        alert('กรุณาเลือกผลดำเนินงาน');
+        return;
+      }
+
+      const note = document.getElementById('note').value;
+
+      const res = await fetch('/api/tasks/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          complaintId: selectedComplaintId,
+          resultStatus: status,
+          note: note || undefined,
+        }),
+      });
+      const data = await res.json();
+
+      const result = document.getElementById('result');
+      result.classList.remove('hidden');
+      document.getElementById('closeForm').classList.add('hidden');
+      if (data.success) {
+        const statusText = status === 'completed' ? '✅ สำเร็จ' : status === 'waiting' ? '⏳ รอดำเนินงาน' : '❌ ไม่สำเร็จ';
+        result.innerHTML = `บันทึกผลเรียบร้อย!<br>${data.refId}: ${statusText}`;
+        result.className = 'result success';
+        setTimeout(() => liff.closeWindow(), 2000);
+      } else {
+        result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
+        result.className = 'result error';
+      }
+    }
+
+    function getLiffId() {
+      return document.querySelector('meta[name="liff-id"]')?.content || '';
+    }
+
+    init();
+  </script>
+</body>
+</html>

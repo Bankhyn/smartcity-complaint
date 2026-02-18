@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "WebSearch",
+      "WebFetch(domain:ppnr.go.th)",
+      "WebFetch(domain:wiki.kpi.ac.th)",
+      "WebFetch(domain:www.dla.go.th)",
+      "WebFetch(domain:developers.line.biz)",
+      "WebFetch(domain:www.omi.me)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:www.ppnr.go.th)",
+      "WebFetch(domain:line.github.io)",
+      "WebFetch(domain:rollout.com)",
+      "WebFetch(domain:www.chamai.go.th)",
+      "WebFetch(domain:pakkretcity.go.th)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 8 npx tsx:*)",
+      "Bash(ngrok:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ลงทะเบียนเจ้าหน้าที่</title>
+  <link rel="stylesheet" href="/liff/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>📝 ลงทะเบียนเจ้าหน้าที่</h1>
+    <form id="registerForm">
+      <div class="form-group">
+        <label>ชื่อ-นามสกุล</label>
+        <input type="text" id="name" required placeholder="สมชาย ใจดี">
+      </div>
+      <div class="form-group">
+        <label>ตำแหน่ง</label>
+        <input type="text" id="position" placeholder="ช่างไฟฟ้า">
+      </div>
+      <div class="form-group">
+        <label>เบอร์โทรศัพท์</label>
+        <input type="tel" id="phone" required placeholder="089-123-4567">
+      </div>
+      <div class="form-group">
+        <label>สังกัดกอง</label>
+        <select id="department" required>
+          <option value="">-- เลือกกอง --</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">💾 ลงทะเบียน</button>
+    </form>
+    <div id="result" class="result hidden"></div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    let lineUserId = '';
+
+    async function init() {
+      await liff.init({ liffId: getLiffId() });
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      const profile = await liff.getProfile();
+      lineUserId = profile.userId;
+      document.getElementById('name').value = profile.displayName || '';
+
+      // Load departments
+      const res = await fetch('/api/officers/departments/list');
+      const depts = await res.json();
+      const select = document.getElementById('department');
+      depts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.name;
+        select.appendChild(opt);
+      });
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        lineUserId,
+        name: document.getElementById('name').value,
+        position: document.getElementById('position').value,
+        phone: document.getElementById('phone').value,
+        departmentId: document.getElementById('department').value,
+      };
+
+      const res = await fetch('/api/officers/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      const result = document.getElementById('result');
+      result.classList.remove('hidden');
+      if (data.success) {
+        result.innerHTML = '✅ ลงทะเบียนสำเร็จ!';
+        result.className = 'result success';
+        setTimeout(() => liff.closeWindow(), 1500);
+      } else {
+        result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
+        result.className = 'result error';
+      }
+    });
+
+    function getLiffId() {
+      return document.querySelector('meta[name="liff-id"]')?.content || '';
+    }
+
+    init();
+  </script>
+</body>
+</html>
