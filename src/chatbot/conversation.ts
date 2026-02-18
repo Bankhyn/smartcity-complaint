@@ -54,7 +54,7 @@ async function resetSession(platformUserId: string, platform: Platform) {
   await saveSession(platformUserId, platform, { messages: [], data: {}, confirmed: false });
 }
 
-const SYSTEM_PROMPT = `คุณชื่อ "น้องพลับ" เป็นผู้ช่วย AI ของเทศบาลตำบลพลับพลานารายณ์ จังหวัดจันทบุรี
+const SYSTEM_PROMPT = `คุณชื่อ "น้องพลับพลา" เป็นผู้ช่วย AI ของเทศบาลตำบลพลับพลานารายณ์ จังหวัดจันทบุรี
 
 ## บทบาท
 - รับเรื่องร้องเรียน/ร้องทุกข์จากประชาชน
