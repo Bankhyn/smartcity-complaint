@@ -5,9 +5,11 @@ import { notificationService } from '../../services/notification.service.js';
 
 export const tasksApi = Router();
 
-// GET /api/tasks/pending/:departmentId
-tasksApi.get('/pending/:departmentId', async (req, res) => {
-  const tasks = await complaintService.getByDepartment(Number(req.params.departmentId), 'accepted');
+// GET /api/tasks/pending/:officerId — ดึงงานเฉพาะกองของเจ้าหน้าที่
+tasksApi.get('/pending/:officerId', async (req, res) => {
+  const officer = await officerService.getById(Number(req.params.officerId));
+  if (!officer) return res.status(404).json({ error: 'Officer not found' });
+  const tasks = await complaintService.getByDepartment(officer.departmentId, 'accepted');
   res.json(tasks);
 });
 

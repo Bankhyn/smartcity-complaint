@@ -9,6 +9,7 @@
 <body>
   <div class="container">
     <h1>📋 เลือกงานออกปฏิบัติงาน</h1>
+    <p id="deptName" style="text-align:center;color:#2196F3;font-weight:bold;margin-bottom:12px;"></p>
     <div id="taskList" class="task-list">
       <p class="loading">กำลังโหลด...</p>
     </div>
@@ -24,7 +25,8 @@
     let tasks = [];
 
     async function init() {
-      await liff.init({ liffId: getLiffId() });
+      const config = await fetch('/api/config').then(r => r.json());
+      await liff.init({ liffId: config.liffId });
       const params = new URLSearchParams(window.location.search);
       officerId = params.get('officerId');
 
@@ -33,21 +35,25 @@
         return;
       }
 
-      // Load officer info to get department
-      const officerRes = await fetch(`/api/officers/${encodeURIComponent(officerId)}`);
+      // ดึง officer จาก LINE profile
+      const profile = await liff.getProfile();
+      const officerRes = await fetch(`/api/officers/${profile.userId}`);
       if (!officerRes.ok) {
-        // Try getting by LINE userId
-        const profile = await liff.getProfile();
-        const res2 = await fetch(`/api/officers/${profile.userId}`);
-        if (!res2.ok) {
-          document.getElementById('taskList').innerHTML = '<p class="error">กรุณาลงทะเบียนก่อน</p>';
-          return;
-        }
-        const officer = await res2.json();
-        officerId = officer.id;
+        document.getElementById('taskList').innerHTML = '<p class="error">กรุณาลงทะเบียนก่อน พิมพ์ /ลงทะเบียน ในกลุ่ม</p>';
+        return;
+      }
+      const officer = await officerRes.json();
+      officerId = officer.id;
+
+      // แสดงชื่อกอง
+      const deptRes = await fetch('/api/officers/departments/list');
+      if (deptRes.ok) {
+        const depts = await deptRes.json();
+        const dept = depts.find(d => d.id === officer.departmentId);
+        if (dept) document.getElementById('deptName').textContent = `🏢 ${dept.name}`;
       }
 
-      // Load pending tasks
+      // โหลดเฉพาะงานของกองนี้
       const res = await fetch(`/api/tasks/pending/${officerId}`);
       tasks = await res.json();
 
@@ -112,10 +118,6 @@
         document.getElementById('dispatchBtn').disabled = false;
         document.getElementById('dispatchBtn').textContent = '✅ รับงานที่เลือก';
       }
-    }
-
-    function getLiffId() {
-      return document.querySelector('meta[name="liff-id"]')?.content || '';
     }
 
     init();

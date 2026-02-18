@@ -38,7 +38,8 @@
     let lineUserId = '';
 
     async function init() {
-      await liff.init({ liffId: getLiffId() });
+      const config = await fetch('/api/config').then(r => r.json());
+      await liff.init({ liffId: config.liffId });
       if (!liff.isLoggedIn()) {
         liff.login();
         return;
@@ -87,10 +88,6 @@
         result.className = 'result error';
       }
     });
-
-    function getLiffId() {
-      return document.querySelector('meta[name="liff-id"]')?.content || '';
-    }
 
     init();
   </script>

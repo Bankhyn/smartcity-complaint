@@ -30,6 +30,11 @@ app.use(facebookWebhook);
 app.use('/api/tasks', tasksApi);
 app.use('/api/officers', officersApi);
 
+// Config for LIFF
+app.get('/api/config', (_req, res) => {
+  res.json({ liffId: env.liffId });
+});
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({
