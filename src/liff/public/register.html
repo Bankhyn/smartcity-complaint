@@ -9,7 +9,8 @@
 <body>
   <div class="container">
     <h1>📝 ลงทะเบียนเจ้าหน้าที่</h1>
-    <form id="registerForm">
+    <div id="loading" class="loading">กำลังโหลด...</div>
+    <form id="registerForm" class="hidden">
       <div class="form-group">
         <label>ชื่อ-นามสกุล</label>
         <input type="text" id="name" required placeholder="สมชาย ใจดี">
@@ -38,30 +39,56 @@
     let lineUserId = '';
 
     async function init() {
-      const config = await fetch('/api/config').then(r => r.json());
-      await liff.init({ liffId: config.liffId });
-      if (!liff.isLoggedIn()) {
-        liff.login();
-        return;
-      }
-      const profile = await liff.getProfile();
-      lineUserId = profile.userId;
-      document.getElementById('name').value = profile.displayName || '';
+      try {
+        const config = await fetch('/api/config').then(r => r.json());
+        await liff.init({ liffId: config.liffId });
 
-      // Load departments
-      const res = await fetch('/api/officers/departments/list');
-      const depts = await res.json();
-      const select = document.getElementById('department');
-      depts.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d.id;
-        opt.textContent = d.name;
-        select.appendChild(opt);
-      });
+        // ดึง profile — ถ้าอยู่ใน LINE app จะได้เลย ถ้าไม่อยู่จะ login
+        if (!liff.isLoggedIn()) {
+          if (!liff.isInClient()) {
+            liff.login({ redirectUri: window.location.href });
+          } else {
+            showError('ไม่สามารถ login ได้ กรุณาเปิดผ่าน LINE');
+          }
+          return;
+        }
+
+        const profile = await liff.getProfile();
+        lineUserId = profile.userId;
+        document.getElementById('name').value = profile.displayName || '';
+
+        // Load departments
+        const res = await fetch('/api/officers/departments/list');
+        const depts = await res.json();
+        const select = document.getElementById('department');
+        depts.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.id;
+          opt.textContent = d.name;
+          select.appendChild(opt);
+        });
+
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('registerForm').classList.remove('hidden');
+      } catch (err) {
+        showError('เกิดข้อผิดพลาด: ' + err.message);
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('loading').classList.add('hidden');
+      const result = document.getElementById('result');
+      result.innerHTML = msg;
+      result.className = 'result error';
+      result.classList.remove('hidden');
     }
 
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.textContent = 'กำลังลงทะเบียน...';
+
       const body = {
         lineUserId,
         name: document.getElementById('name').value,
@@ -70,22 +97,30 @@
         departmentId: document.getElementById('department').value,
       };
 
-      const res = await fetch('/api/officers/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
+      try {
+        const res = await fetch('/api/officers/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
 
-      const result = document.getElementById('result');
-      result.classList.remove('hidden');
-      if (data.success) {
-        result.innerHTML = '✅ ลงทะเบียนสำเร็จ!';
-        result.className = 'result success';
-        setTimeout(() => liff.closeWindow(), 1500);
-      } else {
-        result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
-        result.className = 'result error';
+        const result = document.getElementById('result');
+        result.classList.remove('hidden');
+        document.getElementById('registerForm').classList.add('hidden');
+        if (data.success) {
+          result.innerHTML = '✅ ลงทะเบียนสำเร็จ!';
+          result.className = 'result success';
+          setTimeout(() => { if (liff.isInClient()) liff.closeWindow(); }, 1500);
+        } else {
+          result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
+          result.className = 'result error';
+          document.getElementById('registerForm').classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = '💾 ลงทะเบียน';
+        }
+      } catch (err) {
+        showError('เกิดข้อผิดพลาด: ' + err.message);
       }
     });
 

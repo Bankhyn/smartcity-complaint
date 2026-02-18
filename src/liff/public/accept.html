@@ -100,7 +100,11 @@
       await liff.init({ liffId: config.liffId });
 
       if (!liff.isLoggedIn()) {
-        liff.login();
+        if (!liff.isInClient()) {
+          liff.login({ redirectUri: window.location.href });
+        } else {
+          showError('ไม่สามารถ login ได้ กรุณาเปิดผ่าน LINE');
+        }
         return;
       }
 
@@ -200,7 +204,7 @@
       if (data.success) {
         result.innerHTML = `✅ รับเรื่อง ${refId} เรียบร้อย!`;
         result.className = 'result success';
-        setTimeout(() => liff.closeWindow(), 2000);
+        setTimeout(() => { if (liff.isInClient()) liff.closeWindow(); }, 2000);
       } else {
         result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
         result.className = 'result error';

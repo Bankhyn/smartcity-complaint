@@ -48,25 +48,40 @@
     let tasks = [];
 
     async function init() {
-      const config = await fetch('/api/config').then(r => r.json());
-      await liff.init({ liffId: config.liffId });
-      const params = new URLSearchParams(window.location.search);
-      officerId = params.get('officerId');
+      try {
+        const config = await fetch('/api/config').then(r => r.json());
+        await liff.init({ liffId: config.liffId });
 
-      // ดึง officer จาก LINE profile
-      const profile = await liff.getProfile();
-      const officerRes = await fetch(`/api/officers/${profile.userId}`);
-      if (!officerRes.ok) {
-        document.getElementById('taskList').innerHTML = '<p class="error">กรุณาลงทะเบียนก่อน พิมพ์ /ลงทะเบียน ในกลุ่ม</p>';
-        return;
+        if (!liff.isLoggedIn()) {
+          if (!liff.isInClient()) {
+            liff.login({ redirectUri: window.location.href });
+          } else {
+            showError('ไม่สามารถ login ได้ กรุณาเปิดผ่าน LINE');
+          }
+          return;
+        }
+
+        // ดึง officer จาก LINE profile
+        const profile = await liff.getProfile();
+        const officerRes = await fetch(`/api/officers/${profile.userId}`);
+        if (!officerRes.ok) {
+          showError('กรุณาลงทะเบียนก่อน พิมพ์ /ลงทะเบียน ในกลุ่ม');
+          return;
+        }
+        const officer = await officerRes.json();
+        officerId = officer.id;
+        document.getElementById('officerInfo').textContent = `👷 ${officer.name}`;
+
+        const res = await fetch(`/api/tasks/dispatched/${officerId}`);
+        tasks = await res.json();
+        renderTasks();
+      } catch (err) {
+        showError('เกิดข้อผิดพลาด: ' + err.message);
       }
-      const officer = await officerRes.json();
-      officerId = officer.id;
-      document.getElementById('officerInfo').textContent = `👷 ${officer.name}`;
+    }
 
-      const res = await fetch(`/api/tasks/dispatched/${officerId}`);
-      tasks = await res.json();
-      renderTasks();
+    function showError(msg) {
+      document.getElementById('taskList').innerHTML = `<p class="error" style="color:#C62828;text-align:center;padding:20px;">${msg}</p>`;
     }
 
     function renderTasks() {
@@ -135,7 +150,7 @@
         const statusText = status === 'completed' ? '✅ สำเร็จ' : status === 'waiting' ? '⏳ รอดำเนินงาน' : '❌ ไม่สำเร็จ';
         result.innerHTML = `บันทึกผลเรียบร้อย!<br>${data.refId}: ${statusText}`;
         result.className = 'result success';
-        setTimeout(() => liff.closeWindow(), 2000);
+        setTimeout(() => { if (liff.isInClient()) liff.closeWindow(); }, 2000);
       } else {
         result.innerHTML = '❌ ' + (data.error || 'เกิดข้อผิดพลาด');
         result.className = 'result error';

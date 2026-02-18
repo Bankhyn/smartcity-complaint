@@ -61,7 +61,7 @@ export async function handleGroupCommand(msg: UnifiedMessage) {
   const text = msg.text?.trim() || '';
 
   if (text === '/ลงทะเบียน') {
-    const liffUrl = `https://liff.line.me/${env.liffId}/register`;
+    const liffUrl = `https://liff.line.me/${env.liffId}/register.html`;
     if (msg.replyToken) {
       await lineAdapter.replyText(msg.replyToken, `📝 กรุณาลงทะเบียนที่ลิงก์นี้ค่ะ\n${liffUrl}`);
     }
@@ -76,7 +76,7 @@ export async function handleGroupCommand(msg: UnifiedMessage) {
       }
       return;
     }
-    const liffUrl = `https://liff.line.me/${env.liffId}/dispatch?officerId=${officer.id}`;
+    const liffUrl = `https://liff.line.me/${env.liffId}/dispatch.html`;
     if (msg.replyToken) {
       await lineAdapter.replyText(msg.replyToken, `📋 เลือกงานที่จะออกปฏิบัติงานได้ที่ลิงก์นี้ค่ะ\n${liffUrl}`);
     }
@@ -91,7 +91,7 @@ export async function handleGroupCommand(msg: UnifiedMessage) {
       }
       return;
     }
-    const liffUrl = `https://liff.line.me/${env.liffId}/close-task?officerId=${officer.id}`;
+    const liffUrl = `https://liff.line.me/${env.liffId}/close-task.html`;
     if (msg.replyToken) {
       await lineAdapter.replyText(msg.replyToken, `📋 เลือกงานที่จะปิดได้ที่ลิงก์นี้ค่ะ\n${liffUrl}`);
     }
