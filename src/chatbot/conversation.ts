@@ -7,6 +7,7 @@ import { userService } from '../services/user.service.js';
 import { complaintService } from '../services/complaint.service.js';
 import { aiClassifier } from '../services/ai-classifier.service.js';
 import { notificationService } from '../services/notification.service.js';
+import { imageService } from '../services/image.service.js';
 
 const anthropic = new Anthropic({ apiKey: env.anthropicApiKey });
 
@@ -75,7 +76,8 @@ const SYSTEM_PROMPT = `คุณชื่อ "น้องพลับพลา"
 5. **photo** — รูปถ่าย (ถามแต่ไม่บังคับ)
 
 ## กฎสำคัญ
-- เมื่อได้ข้อมูลครบ 4 ข้อ (issue, location, contactName, contactPhone) → สรุปข้อมูลให้ประชาชนยืนยัน
+- เมื่อได้ข้อมูลครบ 4 ข้อ (issue, location, contactName, contactPhone) → ถามว่ามีรูปถ่ายส่งมาเพิ่มเติมไหม (ไม่บังคับ) แล้วสรุปข้อมูลให้ประชาชนยืนยัน
+- ถ้าประชาชนส่งรูปมาแล้ว (photo มีข้อมูล) ไม่ต้องถามรูปซ้ำ
 - ถ้าเขาพิมพ์มาว่า "ไฟหน้าบ้านดับ อยู่หมู่ 5 ชื่อสมศรี 089-123-4567" ให้รับทุกข้อมูลเลย ไม่ต้องถามทีละข้อ
 - ถ้าประชาชนแค่ทักทาย ให้ทักทายกลับแล้วถามว่ามีอะไรให้ช่วย
 - ถ้าถามเรื่องทั่วไป ตอบได้เลย เช่น เบอร์เทศบาล 0-3941-8498
@@ -105,9 +107,15 @@ export async function handleCitizenMessage(msg: UnifiedMessage): Promise<string[
   const session = await getSession(msg.senderId, msg.platform);
   const text = msg.text?.trim() || '';
 
-  // Handle image
+  // Handle image — ดาวน์โหลดจาก LINE เก็บถาวร
   if (msg.messageType === 'image') {
-    session.data.photo = msg.imageUrl || 'received';
+    try {
+      const photoPath = await imageService.downloadLineImage(msg.platformMessageId);
+      session.data.photo = photoPath;
+    } catch (e) {
+      console.error('Failed to download image:', e);
+      session.data.photo = 'received';
+    }
     session.messages.push({ role: 'user', content: '[ส่งรูปถ่าย]' });
   } else {
     session.messages.push({ role: 'user', content: text });

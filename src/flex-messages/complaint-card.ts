@@ -9,11 +9,33 @@ export function complaintCardFlex(complaint: {
   photoUrl?: string | null;
   createdAt: string;
 }, departmentName: string, platform: string, liffId?: string) {
+  // สร้าง body contents
+  const bodyContents: any[] = [
+    { type: 'text', text: complaint.issue, weight: 'bold', size: 'md', wrap: true },
+    { type: 'separator' },
+    infoRow('หมวด', complaint.category || '-'),
+    infoRow('สถานที่', complaint.location || '-'),
+    infoRow('ผู้แจ้ง', complaint.contactName || '-'),
+    infoRow('เบอร์โทร', complaint.contactPhone || '-'),
+    infoRow('แจ้งผ่าน', platform === 'line' ? 'LINE' : 'Facebook'),
+    infoRow('วันที่', formatDate(complaint.createdAt)),
+  ];
+
+  // เพิ่มรูปถ้ามี
+  const heroSection = (complaint.photoUrl && complaint.photoUrl.startsWith('http')) ? {
+    type: 'image',
+    url: complaint.photoUrl,
+    size: 'full',
+    aspectRatio: '20:13',
+    aspectMode: 'cover',
+  } : undefined;
+
   return {
     type: 'flex' as const,
     altText: `คำร้องใหม่ ${complaint.refId}`,
     contents: {
       type: 'bubble',
+      ...(heroSection ? { hero: heroSection } : {}),
       header: {
         type: 'box',
         layout: 'vertical',
@@ -29,16 +51,7 @@ export function complaintCardFlex(complaint: {
         layout: 'vertical',
         spacing: 'md',
         paddingAll: '15px',
-        contents: [
-          { type: 'text', text: complaint.issue, weight: 'bold', size: 'md', wrap: true },
-          { type: 'separator' },
-          infoRow('หมวด', complaint.category || '-'),
-          infoRow('สถานที่', complaint.location || '-'),
-          infoRow('ผู้แจ้ง', complaint.contactName || '-'),
-          infoRow('เบอร์โทร', complaint.contactPhone || '-'),
-          infoRow('แจ้งผ่าน', platform === 'line' ? 'LINE' : 'Facebook'),
-          infoRow('วันที่', formatDate(complaint.createdAt)),
-        ],
+        contents: bodyContents,
       },
       footer: {
         type: 'box',

@@ -36,6 +36,11 @@
         <label id="noteLabel">หมายเหตุ</label>
         <textarea id="note" rows="3" placeholder="เช่น รออะไหล่, เจ้าบ้านไม่รับสาย..."></textarea>
       </div>
+      <div class="form-group">
+        <label>📷 แนบรูปผลงาน (ไม่บังคับ)</label>
+        <input type="file" id="photoInput" accept="image/*" capture="environment" style="margin-top:6px;">
+        <div id="photoPreview" style="margin-top:8px;"></div>
+      </div>
       <button class="btn btn-primary" onclick="closeTask()">💾 บันทึกผล</button>
     </div>
     <div id="result" class="result hidden"></div>
@@ -46,6 +51,20 @@
     let officerId = null;
     let selectedComplaintId = null;
     let tasks = [];
+    let photoBase64 = null;
+
+    // Preview photo
+    document.getElementById('photoInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        photoBase64 = ev.target.result;
+        document.getElementById('photoPreview').innerHTML =
+          `<img src="${photoBase64}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;">`;
+      };
+      reader.readAsDataURL(file);
+    });
 
     async function init() {
       try {
@@ -131,6 +150,24 @@
       }
 
       const note = document.getElementById('note').value;
+      let photoUrl = undefined;
+
+      // อัพโหลดรูปถ้ามี
+      if (photoBase64) {
+        try {
+          const uploadRes = await fetch('/api/uploads/image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: photoBase64 }),
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadData.success) {
+            photoUrl = uploadData.path;
+          }
+        } catch (e) {
+          console.error('Upload failed:', e);
+        }
+      }
 
       const res = await fetch('/api/tasks/close', {
         method: 'POST',
@@ -139,6 +176,7 @@
           complaintId: selectedComplaintId,
           resultStatus: status,
           note: note || undefined,
+          photoUrl: photoUrl || undefined,
         }),
       });
       const data = await res.json();

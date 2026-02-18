@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { complaintCardFlex, complaintNotifyFlex, departmentSelectFlex, resultNotifyFlex, dispatchNotifyFlex } from '../flex-messages/complaint-card.js';
 import { lineAdapter } from '../adapters/line.adapter.js';
 import { facebookAdapter } from '../adapters/facebook.adapter.js';
+import { imageService } from './image.service.js';
 
 export const notificationService = {
   async notifyNewComplaint(complaint: any, department: any, user: any) {
@@ -15,7 +16,12 @@ export const notificationService = {
 
     const deptGroupId = env.lineGroups[department.code];
     if (deptGroupId) {
-      const cardFlex = complaintCardFlex(complaint, department.name, complaint.platform, env.liffId);
+      // แปลง photoUrl เป็น full URL สำหรับ Flex Message
+      const complaintWithFullPhoto = {
+        ...complaint,
+        photoUrl: complaint.photoUrl ? imageService.getFullUrl(complaint.photoUrl) : null,
+      };
+      const cardFlex = complaintCardFlex(complaintWithFullPhoto, department.name, complaint.platform, env.liffId);
       await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
     }
   },
@@ -23,7 +29,11 @@ export const notificationService = {
   async notifyTransfer(complaint: any, newDepartment: any, fromDepartmentName: string) {
     const deptGroupId = env.lineGroups[newDepartment.code];
     if (deptGroupId) {
-      const cardFlex = complaintCardFlex(complaint, newDepartment.name, complaint.platform, env.liffId);
+      const complaintWithFullPhoto = {
+        ...complaint,
+        photoUrl: complaint.photoUrl ? imageService.getFullUrl(complaint.photoUrl) : null,
+      };
+      const cardFlex = complaintCardFlex(complaintWithFullPhoto, newDepartment.name, complaint.platform, env.liffId);
       await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
     }
 

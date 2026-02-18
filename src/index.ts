@@ -5,6 +5,7 @@ import { lineWebhook } from './webhooks/line.webhook.js';
 import { facebookWebhook } from './webhooks/facebook.webhook.js';
 import { tasksApi } from './liff/api/tasks.js';
 import { officersApi } from './liff/api/officers.js';
+import { uploadsApi } from './liff/api/uploads.js';
 import { seedDepartments } from './db/seed.js';
 import { runMigrations } from './db/migrate.js';
 
@@ -15,12 +16,15 @@ app.use((req, res, next) => {
   if (req.path === '/webhook/line') {
     next();
   } else {
-    express.json()(req, res, next);
+    express.json({ limit: '10mb' })(req, res, next);
   }
 });
 
 // Static files for LIFF
 app.use('/liff', express.static(resolve('src/liff/public')));
+
+// Serve uploaded images
+app.use('/uploads', express.static(resolve('data/uploads')));
 
 // Webhooks
 app.use(lineWebhook);
@@ -29,6 +33,7 @@ app.use(facebookWebhook);
 // LIFF APIs
 app.use('/api/tasks', tasksApi);
 app.use('/api/officers', officersApi);
+app.use('/api/uploads', uploadsApi);
 
 // Config for LIFF
 app.get('/api/config', (_req, res) => {

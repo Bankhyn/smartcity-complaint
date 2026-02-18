@@ -37,6 +37,13 @@
     .detail-row .value {
       flex: 1;
     }
+    .complaint-photo {
+      width: 100%;
+      max-height: 250px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
     .section-title {
       font-weight: 700;
       font-size: 0.95rem;
@@ -172,6 +179,7 @@
         <div class="detail-row"><span class="label">ผู้แจ้ง</span><span class="value">${c.contactName || '-'}</span></div>
         <div class="detail-row"><span class="label">เบอร์โทร</span><span class="value">${c.contactPhone || '-'}</span></div>
         <div class="detail-row"><span class="label">วันที่แจ้ง</span><span class="value">${date}</span></div>
+        ${c.photoUrl ? `<img class="complaint-photo" src="${c.photoUrl.startsWith('http') ? c.photoUrl : c.photoUrl}" alt="รูปประกอบ" onerror="this.style.display='none'">` : '<div class="detail-row"><span class="label">รูปภาพ</span><span class="value">ไม่มี</span></div>'}
       `;
     }
 
