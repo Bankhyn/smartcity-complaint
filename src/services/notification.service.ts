@@ -1,7 +1,7 @@
 import { env } from '../config/env.js';
 import { db, schema } from '../db/index.js';
 import { eq } from 'drizzle-orm';
-import { complaintCardFlex, complaintNotifyFlex, departmentSelectFlex, resultNotifyFlex, dispatchNotifyFlex, acceptNotifyFlex } from '../flex-messages/complaint-card.js';
+import { complaintCardFlex, complaintNotifyFlex, departmentSelectFlex, resultNotifyFlex, dispatchNotifyFlex, acceptNotifyFlex, surveyRequestFlex } from '../flex-messages/complaint-card.js';
 import { lineAdapter } from '../adapters/line.adapter.js';
 import { facebookAdapter } from '../adapters/facebook.adapter.js';
 import { imageService } from './image.service.js';
@@ -21,7 +21,8 @@ export const notificationService = {
         ...complaint,
         photoUrl: complaint.photoUrl ? imageService.getFullUrl(complaint.photoUrl) : null,
       };
-      const cardFlex = complaintCardFlex(complaintWithFullPhoto, department.name, complaint.platform);
+      const liffUrl = env.liffIdOfficer ? `https://liff.line.me/${env.liffIdOfficer}` : undefined;
+      const cardFlex = complaintCardFlex(complaintWithFullPhoto, department.name, complaint.platform, liffUrl);
       await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
     }
   },
@@ -33,7 +34,8 @@ export const notificationService = {
         ...complaint,
         photoUrl: complaint.photoUrl ? imageService.getFullUrl(complaint.photoUrl) : null,
       };
-      const cardFlex = complaintCardFlex(complaintWithFullPhoto, newDepartment.name, complaint.platform);
+      const liffUrl = env.liffIdOfficer ? `https://liff.line.me/${env.liffIdOfficer}` : undefined;
+      const cardFlex = complaintCardFlex(complaintWithFullPhoto, newDepartment.name, complaint.platform, liffUrl);
       await lineAdapter.pushFlexMessage(deptGroupId, cardFlex);
     }
 
@@ -102,6 +104,21 @@ export const notificationService = {
         : complaint.resultStatus === 'waiting' ? '⏳ รอดำเนินการ' : '❌ ไม่สำเร็จ';
       await facebookAdapter.sendText(user.facebookPsid,
         `📢 ผลดำเนินงาน\nคำร้อง: ${complaint.refId}\nเรื่อง: ${complaint.issue}\n\nสถานะ: ${statusText}${complaint.resultNote ? `\nหมายเหตุ: ${complaint.resultNote}` : ''}`);
+    }
+  },
+
+  async sendSurvey(complaint: any) {
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, complaint.userId));
+    if (!user) return;
+
+    const surveyUrl = `${env.baseUrl}/liff/survey.html?id=${complaint.id}`;
+
+    if (user.lineUserId) {
+      const flex = surveyRequestFlex(complaint, surveyUrl);
+      await lineAdapter.pushFlexMessage(user.lineUserId, flex);
+    } else if (user.facebookPsid) {
+      await facebookAdapter.sendText(user.facebookPsid,
+        `⭐ ขอให้คะแนนความพึงพอใจ\nคำร้อง: ${complaint.refId}\n\nกรุณาให้คะแนนที่ลิงก์นี้:\n${surveyUrl}`);
     }
   },
 };

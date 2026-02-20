@@ -8,7 +8,7 @@ export function complaintCardFlex(complaint: {
   contactPhone?: string | null;
   photoUrl?: string | null;
   createdAt: string;
-}, departmentName: string, platform: string) {
+}, departmentName: string, platform: string, liffUrl?: string) {
   // สร้าง body contents
   const bodyContents: any[] = [
     { type: 'text', text: complaint.issue, weight: 'bold', size: 'md', wrap: true },
@@ -63,19 +63,16 @@ export function complaintCardFlex(complaint: {
             type: 'button',
             style: 'primary',
             color: '#4CAF50',
-            action: {
-              type: 'postback' as const,
-              label: '✅ รับเรื่อง',
-              displayText: `รับเรื่อง ${complaint.refId}`,
-              data: `action=accept&complaintId=${complaint.refId}`,
-            },
+            action: liffUrl
+              ? { type: 'uri' as const, label: '✅ รับเรื่อง', uri: `${liffUrl}?action=accept&ref=${complaint.refId}` }
+              : { type: 'postback' as const, label: '✅ รับเรื่อง', displayText: `รับเรื่อง ${complaint.refId}`, data: `action=accept&complaintId=${complaint.refId}` },
           },
           {
             type: 'button',
             style: 'primary',
             color: '#F44336',
             action: {
-              type: 'postback',
+              type: 'postback' as const,
               label: '❌ ไม่ใช่กองนี้',
               displayText: `ปฏิเสธ ${complaint.refId}`,
               data: `action=reject&complaintId=${complaint.refId}`,
@@ -305,6 +302,124 @@ export function dispatchNotifyFlex(complaint: {
           infoRow('👷 ช่าง', officerName),
           infoRow('📞 เบอร์', officerPhone),
           { type: 'text', text: '\nหากมีสายโทรเข้าจากเบอร์นี้ กรุณารับสายด้วยนะคะ 🙏', size: 'xs', wrap: true, color: '#F44336' },
+        ],
+      },
+    },
+  };
+}
+
+// Flex Message: ยืนยันข้อมูลคำร้อง (ให้ประชาชนกดปุ่ม)
+export function confirmDataFlex(data: {
+  issue: string;
+  location: string;
+  contactName: string;
+  contactPhone: string;
+  hasPhoto: boolean;
+}) {
+  return {
+    type: 'flex' as const,
+    altText: 'ยืนยันข้อมูลคำร้อง',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#2196F3',
+        paddingAll: '15px',
+        contents: [
+          { type: 'text', text: '📋 สรุปข้อมูลคำร้อง', color: '#ffffff', weight: 'bold', size: 'md' },
+          { type: 'text', text: 'กรุณาตรวจสอบและกดยืนยัน', color: '#E3F2FD', size: 'xs' },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        paddingAll: '15px',
+        contents: [
+          infoRow('📌 ปัญหา', data.issue),
+          infoRow('📍 สถานที่', data.location),
+          infoRow('👤 ชื่อ', data.contactName),
+          infoRow('📞 เบอร์โทร', data.contactPhone),
+          infoRow('📷 รูปภาพ', data.hasPhoto ? 'มี' : 'ไม่มี'),
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: '15px',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#4CAF50',
+            action: { type: 'postback' as const, label: '✅ ยืนยัน ส่งเรื่อง', displayText: 'ยืนยันส่งเรื่อง', data: 'action=citizen_confirm' },
+          },
+          {
+            type: 'button',
+            style: 'secondary',
+            action: { type: 'postback' as const, label: '✏️ แก้ไขข้อมูล', displayText: 'แก้ไขข้อมูล', data: 'action=citizen_edit' },
+          },
+          {
+            type: 'button',
+            style: 'secondary',
+            action: { type: 'postback' as const, label: '❌ ยกเลิก', displayText: 'ยกเลิก', data: 'action=citizen_cancel' },
+          },
+        ],
+      },
+    },
+  };
+}
+
+// Flex Message: ขอให้ประชาชนให้คะแนนความพึงพอใจ
+export function surveyRequestFlex(complaint: {
+  refId: string;
+  issue: string;
+}, surveyUrl: string) {
+  return {
+    type: 'flex' as const,
+    altText: `ขอให้คะแนนความพึงพอใจ ${complaint.refId}`,
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#9C27B0',
+        paddingAll: '15px',
+        contents: [
+          { type: 'text', text: '⭐ ให้คะแนนความพึงพอใจ', color: '#ffffff', weight: 'bold', size: 'md' },
+          { type: 'text', text: 'เทศบาลตำบลพลับพลานารายณ์', color: '#E1BEE7', size: 'xs' },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        paddingAll: '15px',
+        contents: [
+          infoRow('คำร้อง', complaint.refId),
+          infoRow('เรื่อง', complaint.issue),
+          { type: 'separator' },
+          { type: 'text', text: 'ขอความร่วมมือให้คะแนนความพึงพอใจ\nเพื่อปรับปรุงการให้บริการนะคะ 🙏', size: 'sm', wrap: true, color: '#666666' },
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: '15px',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#9C27B0',
+            action: {
+              type: 'uri',
+              label: '⭐ ให้คะแนน',
+              uri: surveyUrl,
+            },
+          },
         ],
       },
     },

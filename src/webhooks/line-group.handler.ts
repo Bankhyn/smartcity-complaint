@@ -8,65 +8,34 @@ import { eq } from 'drizzle-orm';
 import { env } from '../config/env.js';
 import type { UnifiedMessage, DepartmentCode } from '../types/index.js';
 
-// สร้าง Flex Message เมนู — ปุ่มเป็น URI เปิดลิงก์เลย
+// สร้าง Flex Message เมนู — ปุ่มเปิด officer.html (unified app)
 function mainMenuFlex(urls: {
   register: string;
-  accept: string | null;
-  dispatch: string | null;
-  close: string | null;
-  dashboard: string | null;
+  officer: string | null;
   dashboardExec: string | null;
   officerName?: string;
 }) {
-  const buttons: any[] = [
-    {
-      type: 'button',
-      style: 'primary',
-      color: '#43A047',
-      height: 'sm',
-      action: { type: 'uri', label: '📝 ลงทะเบียน', uri: urls.register },
-    },
-  ];
+  const buttons: any[] = [];
 
-  if (urls.accept) {
-    buttons.push({
-      type: 'button',
-      style: 'primary',
-      color: '#FB8C00',
-      height: 'sm',
-      action: { type: 'uri', label: '📋 รับงาน', uri: urls.accept },
-    });
+  if (urls.officer) {
+    buttons.push(
+      {
+        type: 'button',
+        style: 'primary',
+        color: '#D97706',
+        height: 'sm',
+        action: { type: 'uri', label: '📋 เปิดระบบเจ้าหน้าที่', uri: urls.officer },
+      },
+    );
   }
 
-  if (urls.dispatch) {
-    buttons.push({
-      type: 'button',
-      style: 'primary',
-      color: '#1E88E5',
-      height: 'sm',
-      action: { type: 'uri', label: '🚗 ออกปฏิบัติงาน', uri: urls.dispatch },
-    });
-  }
-
-  if (urls.close) {
-    buttons.push({
-      type: 'button',
-      style: 'primary',
-      color: '#E53935',
-      height: 'sm',
-      action: { type: 'uri', label: '✅ ปิดงาน', uri: urls.close },
-    });
-  }
-
-  if (urls.dashboard) {
-    buttons.push({
-      type: 'button',
-      style: 'primary',
-      color: '#7B1FA2',
-      height: 'sm',
-      action: { type: 'uri', label: '📊 แดชบอร์ด', uri: urls.dashboard },
-    });
-  }
+  buttons.push({
+    type: 'button',
+    style: urls.officer ? 'secondary' : 'primary',
+    color: urls.officer ? undefined : '#43A047',
+    height: 'sm',
+    action: { type: 'uri', label: '📝 ลงทะเบียน / แก้ไขข้อมูล', uri: urls.register },
+  });
 
   if (urls.dashboardExec) {
     buttons.push({
@@ -78,8 +47,7 @@ function mainMenuFlex(urls: {
     });
   }
 
-  // ถ้ายังไม่ลงทะเบียน แสดงข้อความ
-  if (!urls.accept) {
+  if (!urls.officer) {
     buttons.push({
       type: 'box',
       layout: 'vertical',
@@ -141,9 +109,16 @@ export async function handleGroupPostback(msg: UnifiedMessage) {
         }
         break;
       }
-      const acceptUrl = `${env.baseUrl}/liff/accept.html?ref=${complaintRefId}&uid=${msg.senderId}`;
+      // เปิด LIFF officer.html พร้อม auto-accept (ถ้ามี LIFF ID) หรือ fallback เป็น token URL
+      let acceptUrl: string;
+      if (env.liffIdOfficer) {
+        acceptUrl = `https://liff.line.me/${env.liffIdOfficer}?action=accept&ref=${complaintRefId}`;
+      } else {
+        const tkn = tokenService.generate(msg.senderId);
+        acceptUrl = `${env.baseUrl}/liff/officer.html?t=${tkn}&action=accept&ref=${complaintRefId}`;
+      }
       if (msg.replyToken) {
-        await lineAdapter.replyText(msg.replyToken, `📋 กรุณากรอกรายละเอียดรับเรื่องที่ลิงก์นี้ค่ะ\n${acceptUrl}`);
+        await lineAdapter.replyText(msg.replyToken, `📋 กดเพื่อรับเรื่องค่ะ\n${acceptUrl}`);
       }
       break;
     }
@@ -184,29 +159,23 @@ export async function handleGroupCommand(msg: UnifiedMessage) {
 
   if (text === '/ppnr') {
     try {
-      const profile = await lineAdapter.getGroupMemberProfile(msg.chatId, msg.senderId);
-      const displayName = profile?.displayName || '';
       const officer = await officerService.getByLineUserId(msg.senderId);
 
-      // สร้าง token เฉพาะคนนี้ (หมดอายุ 30 นาที)
+      // สร้าง token (30 นาที) สำหรับ fallback auth
       const token = tokenService.generate(msg.senderId, officer?.id);
 
       const registerUrl = `${env.baseUrl}/liff/register.html?t=${token}`;
 
-      let acceptUrl: string | null = null;
-      let dispatchUrl: string | null = null;
-      let closeUrl: string | null = null;
-
-      let dashboardUrl: string | null = null;
+      // URL หลัก: ถ้ามี LIFF ID → ใช้ LIFF URL, ถ้าไม่มี → ใช้ token URL
+      let officerUrl: string | null = null;
       let dashboardExecUrl: string | null = null;
 
       if (officer) {
-        acceptUrl = `${env.baseUrl}/liff/accept-list.html?t=${token}`;
-        dispatchUrl = `${env.baseUrl}/liff/dispatch.html?t=${token}`;
-        closeUrl = `${env.baseUrl}/liff/close-task.html?t=${token}`;
-        dashboardUrl = `${env.baseUrl}/liff/dashboard.html?t=${token}`;
+        officerUrl = env.liffIdOfficer
+          ? `https://liff.line.me/${env.liffIdOfficer}`
+          : `${env.baseUrl}/liff/officer.html?t=${token}`;
 
-        // ผู้บริหาร: ถ้าไม่ได้ตั้ง ADMIN_LINE_USER_IDS ให้ทุกคนเข้าได้
+        // ผู้บริหาร
         const adminIds = (process.env.ADMIN_LINE_USER_IDS || '').split(',').filter(Boolean);
         if (adminIds.length === 0 || adminIds.includes(msg.senderId)) {
           dashboardExecUrl = `${env.baseUrl}/liff/dashboard-exec.html?t=${token}`;
@@ -215,10 +184,7 @@ export async function handleGroupCommand(msg: UnifiedMessage) {
 
       const flex = mainMenuFlex({
         register: registerUrl,
-        accept: acceptUrl,
-        dispatch: dispatchUrl,
-        close: closeUrl,
-        dashboard: dashboardUrl,
+        officer: officerUrl,
         dashboardExec: dashboardExecUrl,
         officerName: officer?.name,
       });

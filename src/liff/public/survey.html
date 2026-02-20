@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>แบบสำรวจความพึงพอใจ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+    .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+    .header { background: linear-gradient(135deg, #9C27B0, #7B1FA2); color: white; padding: 24px 16px; border-radius: 12px; margin-bottom: 16px; text-align: center; }
+    .header h1 { font-size: 20px; margin-bottom: 4px; }
+    .header p { font-size: 13px; opacity: 0.85; }
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 16px; margin-bottom: 4px; color: #333; }
+    .card .sub { font-size: 13px; color: #999; margin-bottom: 16px; }
+    .complaint-info { background: #F3E5F5; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+    .complaint-info .ref { font-weight: bold; color: #7B1FA2; }
+    .complaint-info .issue { font-size: 14px; color: #555; margin-top: 4px; }
+    .rating-section { margin-bottom: 24px; }
+    .rating-label { font-size: 15px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .rating-label .icon { font-size: 18px; }
+    .stars { display: flex; gap: 8px; justify-content: center; padding: 12px 0; }
+    .star { font-size: 36px; cursor: pointer; transition: transform 0.15s; user-select: none; filter: grayscale(1); opacity: 0.4; }
+    .star.active { filter: none; opacity: 1; transform: scale(1.15); }
+    .star:hover { transform: scale(1.2); }
+    .rating-text { text-align: center; font-size: 13px; color: #9C27B0; min-height: 20px; margin-top: 4px; }
+    textarea { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 12px; font-size: 14px; resize: vertical; min-height: 80px; font-family: inherit; }
+    textarea:focus { outline: none; border-color: #9C27B0; }
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: opacity 0.2s; }
+    .btn-primary { background: #9C27B0; color: white; }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-primary:not(:disabled):hover { opacity: 0.9; }
+    .success { text-align: center; padding: 40px 16px; }
+    .success .check { font-size: 64px; margin-bottom: 16px; }
+    .success h2 { color: #4CAF50; margin-bottom: 8px; }
+    .success p { color: #666; font-size: 14px; }
+    .loading { text-align: center; padding: 40px; color: #999; }
+    .error { color: #F44336; text-align: center; padding: 16px; }
+    .already { text-align: center; padding: 40px 16px; }
+    .already .icon { font-size: 48px; margin-bottom: 12px; }
+    .already h2 { color: #FF9800; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><img src="logo-ppnr.png" alt="" style="width:36px;height:36px;vertical-align:middle;border-radius:50%;margin-right:6px;">แบบสำรวจความพึงพอใจ</h1>
+      <p>เทศบาลตำบลพลับพลานารายณ์</p>
+    </div>
+
+    <div id="loading" class="loading">กำลังโหลด...</div>
+
+    <div id="form" style="display:none">
+      <div class="card complaint-info">
+        <div class="ref" id="refId"></div>
+        <div class="issue" id="issue"></div>
+      </div>
+
+      <div class="card">
+        <div class="rating-section">
+          <div class="rating-label"><span class="icon">🤖</span> ระบบ "น้องพลับพลานารายณ์"</div>
+          <div class="sub">การรับเรื่อง ความสะดวก ความรวดเร็วของระบบ</div>
+          <div class="stars" id="systemStars">
+            <span class="star" data-val="1">⭐</span>
+            <span class="star" data-val="2">⭐</span>
+            <span class="star" data-val="3">⭐</span>
+            <span class="star" data-val="4">⭐</span>
+            <span class="star" data-val="5">⭐</span>
+          </div>
+          <div class="rating-text" id="systemText"></div>
+        </div>
+
+        <div class="rating-section">
+          <div class="rating-label"><span class="icon">👷</span> เจ้าหน้าที่/พนักงาน</div>
+          <div class="sub">การให้บริการ มารยาท คุณภาพงาน</div>
+          <div class="stars" id="officerStars">
+            <span class="star" data-val="1">⭐</span>
+            <span class="star" data-val="2">⭐</span>
+            <span class="star" data-val="3">⭐</span>
+            <span class="star" data-val="4">⭐</span>
+            <span class="star" data-val="5">⭐</span>
+          </div>
+          <div class="rating-text" id="officerText"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="rating-label" style="margin-bottom: 8px;">💬 ความคิดเห็นเพิ่มเติม (ไม่บังคับ)</div>
+        <textarea id="comment" placeholder="พิมพ์ความคิดเห็นตรงนี้ได้เลยค่ะ..."></textarea>
+      </div>
+
+      <button class="btn btn-primary" id="submitBtn" disabled onclick="submitSurvey()">
+        ส่งแบบสำรวจ
+      </button>
+      <div id="errorMsg" class="error" style="display:none"></div>
+    </div>
+
+    <div id="success" class="success" style="display:none">
+      <div class="check">✅</div>
+      <h2>ขอบคุณค่ะ!</h2>
+      <p>เทศบาลจะนำคะแนนไปปรับปรุง<br>การให้บริการต่อไปนะคะ 🙏</p>
+    </div>
+
+    <div id="already" class="already" style="display:none">
+      <div class="icon">📝</div>
+      <h2>ให้คะแนนไปแล้วค่ะ</h2>
+      <p>ขอบคุณที่ร่วมให้คะแนน<br>คำร้องนี้ได้ให้คะแนนเรียบร้อยแล้วค่ะ 🙏</p>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const complaintId = params.get('id');
+    const token = params.get('t');
+    let systemRating = 0;
+    let officerRating = 0;
+    const ratingLabels = ['', 'ต้องปรับปรุง', 'พอใช้', 'ปานกลาง', 'ดี', 'ดีมาก'];
+
+    function setupStars(containerId, textId, setter) {
+      const container = document.getElementById(containerId);
+      const textEl = document.getElementById(textId);
+      container.querySelectorAll('.star').forEach(star => {
+        star.addEventListener('click', () => {
+          const val = parseInt(star.dataset.val);
+          setter(val);
+          container.querySelectorAll('.star').forEach((s, i) => {
+            s.classList.toggle('active', i < val);
+          });
+          textEl.textContent = ratingLabels[val];
+          checkReady();
+        });
+      });
+    }
+
+    function checkReady() {
+      document.getElementById('submitBtn').disabled = !(systemRating > 0 && officerRating > 0);
+    }
+
+    async function init() {
+      if (!complaintId) {
+        document.getElementById('loading').textContent = 'ไม่พบข้อมูลคำร้อง';
+        return;
+      }
+
+      try {
+        const H = { 'ngrok-skip-browser-warning': '1' };
+        const res = await fetch(`/api/survey/info?id=${complaintId}&t=${token || ''}`, { headers: H });
+        const data = await res.json();
+
+        if (data.alreadyRated) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('already').style.display = 'block';
+          return;
+        }
+
+        if (data.error) {
+          document.getElementById('loading').textContent = data.error;
+          return;
+        }
+
+        document.getElementById('refId').textContent = data.refId;
+        document.getElementById('issue').textContent = data.issue;
+
+        setupStars('systemStars', 'systemText', v => systemRating = v);
+        setupStars('officerStars', 'officerText', v => officerRating = v);
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('form').style.display = 'block';
+      } catch (e) {
+        document.getElementById('loading').textContent = 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+      }
+    }
+
+    async function submitSurvey() {
+      const btn = document.getElementById('submitBtn');
+      const errEl = document.getElementById('errorMsg');
+      btn.disabled = true;
+      btn.textContent = 'กำลังส่ง...';
+      errEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/survey/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+          body: JSON.stringify({
+            complaintId: parseInt(complaintId),
+            systemRating,
+            officerRating,
+            comment: document.getElementById('comment').value.trim() || null,
+            token: token || null,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('form').style.display = 'none';
+          document.getElementById('success').style.display = 'block';
+        } else {
+          errEl.textContent = data.error || 'เกิดข้อผิดพลาด';
+          errEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'ส่งแบบสำรวจ';
+        }
+      } catch (e) {
+        errEl.textContent = 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'ส่งแบบสำรวจ';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

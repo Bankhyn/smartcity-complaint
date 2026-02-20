@@ -92,6 +92,14 @@ const tables = [
     correct_department_id INTEGER NOT NULL REFERENCES departments(id),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
+  `CREATE TABLE IF NOT EXISTS satisfaction_ratings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    complaint_id INTEGER NOT NULL REFERENCES complaints(id),
+    system_rating INTEGER,
+    officer_rating INTEGER,
+    comment TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
 ];
 
 const alterations = [
@@ -99,6 +107,8 @@ const alterations = [
   `ALTER TABLE complaints ADD COLUMN accept_note TEXT`,
   `ALTER TABLE complaints ADD COLUMN scheduled_date TEXT`,
   `ALTER TABLE officers ADD COLUMN line_display_name TEXT`,
+  `ALTER TABLE users ADD COLUMN address TEXT`,
+  `ALTER TABLE users ADD COLUMN pdpa_consent_at TEXT`,
 ];
 
 export async function runMigrations() {

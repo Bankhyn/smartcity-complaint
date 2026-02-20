@@ -7,6 +7,8 @@ import { tasksApi } from './liff/api/tasks.js';
 import { officersApi } from './liff/api/officers.js';
 import { uploadsApi } from './liff/api/uploads.js';
 import { dashboardApi } from './liff/api/dashboard.js';
+import { surveyApi } from './liff/api/survey.js';
+import { citizenApi } from './liff/api/citizen.js';
 import { seedDepartments } from './db/seed.js';
 import { runMigrations } from './db/migrate.js';
 import { tokenService } from './services/token.service.js';
@@ -37,10 +39,12 @@ app.use('/api/tasks', tasksApi);
 app.use('/api/officers', officersApi);
 app.use('/api/uploads', uploadsApi);
 app.use('/api/dashboard', dashboardApi);
+app.use('/api/survey', surveyApi);
+app.use('/api/citizen', citizenApi);
 
-// Config for LIFF
+// Config for LIFF (public — LIFF IDs are not secret)
 app.get('/api/config', (_req, res) => {
-  res.json({ liffId: env.liffId });
+  res.json({ liffId: env.liffId, liffIdOfficer: env.liffIdOfficer });
 });
 
 // Token verify — หน้าเว็บเรียกเช็คว่า token ถูกต้องไหม
@@ -62,19 +66,9 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// Home
+// Home — redirect to citizen portal
 app.get('/', (_req, res) => {
-  res.json({
-    name: 'ระบบรับร้องเรียน เทศบาลตำบลพลับพลานารายณ์',
-    endpoints: {
-      health: '/health',
-      lineWebhook: '/webhook/line',
-      facebookWebhook: '/webhook/facebook',
-      liffRegister: '/liff/register.html',
-      liffDispatch: '/liff/dispatch.html',
-      liffCloseTask: '/liff/close-task.html',
-    },
-  });
+  res.redirect('/liff/citizen.html');
 });
 
 // Migrate + Seed + Start
@@ -88,11 +82,12 @@ async function start() {
   console.log(`📡 Server running on http://localhost:${env.port}`);
   console.log('');
   console.log('Endpoints:');
+  console.log(`  Citizen portal:   /liff/citizen.html`);
+  console.log(`  Admin dashboard:  /liff/admin.html`);
   console.log(`  LINE webhook:     /webhook/line`);
   console.log(`  Facebook webhook: /webhook/facebook`);
-  console.log(`  LIFF register:    /liff/register.html`);
-  console.log(`  LIFF dispatch:    /liff/dispatch.html`);
-  console.log(`  LIFF close task:  /liff/close-task.html`);
+  console.log(`  Citizen API:      /api/citizen/*`);
+  console.log(`  Dashboard API:    /api/dashboard/*`);
   console.log(`  Health:           /health`);
   console.log('');
   });

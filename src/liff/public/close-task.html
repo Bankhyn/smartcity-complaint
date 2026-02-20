@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>✅ ปิดงาน</h1>
+    <h1><img src="logo-ppnr.png" alt="" style="width:36px;height:36px;vertical-align:middle;border-radius:50%;margin-right:6px;">ปิดงาน</h1>
     <p id="officerInfo" style="text-align:center;color:#2196F3;font-weight:bold;margin-bottom:12px;"></p>
     <div id="taskList" class="task-list"><p class="loading">กำลังตรวจสอบ...</p></div>
     <div id="closeForm" class="hidden">
@@ -101,9 +101,14 @@
         }
       });
     });
+    let isSubmitting = false;
     async function closeTask() {
+      if (isSubmitting) return; // กัน double click
       const status = document.querySelector('input[name="status"]:checked')?.value;
       if (!status) { alert('กรุณาเลือกผลดำเนินงาน'); return; }
+      isSubmitting = true;
+      const btn = document.querySelector('.btn-primary');
+      btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...';
       const note = document.getElementById('note').value;
       let photoUrl;
       if (photoBase64) {
@@ -112,16 +117,20 @@
           const ud = await u.json(); if (ud.success) photoUrl = ud.path;
         } catch(e) { console.error('Upload failed:',e); }
       }
-      const res = await fetch('/api/tasks/close',{method:'POST',headers:{'Content-Type':'application/json',...H},
-        body:JSON.stringify({complaintId:selectedComplaintId,resultStatus:status,note:note||undefined,photoUrl})});
-      const data = await res.json();
-      const result = document.getElementById('result');
-      result.classList.remove('hidden'); document.getElementById('closeForm').classList.add('hidden');
-      if (data.success) {
-        const st = status==='completed'?'✅ สำเร็จ':status==='waiting'?'⏳ รอดำเนินงาน':'❌ ไม่สำเร็จ';
-        result.innerHTML = `บันทึกผลเรียบร้อย!<br>${data.refId}: ${st}`;
-        result.className = 'result success';
-      } else { result.innerHTML = '❌ '+(data.error||'เกิดข้อผิดพลาด'); result.className = 'result error'; }
+      try {
+        const res = await fetch('/api/tasks/close',{method:'POST',headers:{'Content-Type':'application/json',...H},
+          body:JSON.stringify({complaintId:selectedComplaintId,resultStatus:status,note:note||undefined,photoUrl})});
+        const data = await res.json();
+        const result = document.getElementById('result');
+        result.classList.remove('hidden'); document.getElementById('closeForm').classList.add('hidden');
+        if (data.success) {
+          const st = status==='completed'?'✅ สำเร็จ':status==='waiting'?'⏳ รอดำเนินงาน':'❌ ไม่สำเร็จ';
+          result.innerHTML = `บันทึกผลเรียบร้อย!<br>${data.refId}: ${st}`;
+          result.className = 'result success';
+        } else { result.innerHTML = '❌ '+(data.error||'เกิดข้อผิดพลาด'); result.className = 'result error'; }
+      } catch(e) {
+        btn.disabled = false; btn.textContent = '💾 บันทึกผล'; isSubmitting = false;
+      }
     }
     init();
   </script>

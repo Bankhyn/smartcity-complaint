@@ -8,6 +8,7 @@ export const env = {
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET || '',
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
   liffId: process.env.LIFF_ID || '',
+  liffIdOfficer: process.env.LIFF_ID_OFFICER || '',
 
   // Facebook
   fbPageAccessToken: process.env.FB_PAGE_ACCESS_TOKEN || '',

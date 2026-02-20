@@ -18,8 +18,10 @@ export const users = sqliteTable('users', {
   facebookPsid: text('facebook_psid'),
   displayName: text('display_name'),
   phone: text('phone'),
+  address: text('address'),
   pictureUrl: text('picture_url'),
-  platform: text('platform').notNull(),            // line | facebook
+  pdpaConsentAt: text('pdpa_consent_at'),
+  platform: text('platform').notNull(),            // line | facebook | web
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
 
@@ -100,6 +102,16 @@ export const conversations = sqliteTable('conversations', {
   state: text('state').notNull().default('idle'),
   data: text('data').notNull().default('{}'),        // JSON
   updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+});
+
+// แบบสำรวจความพึงพอใจ
+export const satisfactionRatings = sqliteTable('satisfaction_ratings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  complaintId: integer('complaint_id').notNull().references(() => complaints.id),
+  systemRating: integer('system_rating'),           // คะแนนระบบน้องพลับพลา 1-5
+  officerRating: integer('officer_rating'),          // คะแนนเจ้าหน้าที่ 1-5
+  comment: text('comment'),                          // ความคิดเห็นเพิ่มเติม
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 // AI learning: เก็บ correction เพื่อให้ AI เรียนรู้

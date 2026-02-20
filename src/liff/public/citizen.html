@@ -1,0 +1,2327 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>เทศบาลตำบลพลับพลานารายณ์ — บริการประชาชน</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Noto+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #1D4ED8;
+      --primary-dark: #1E3A8A;
+      --primary-light: #3B82F6;
+      --primary-bg: #EFF6FF;
+      --cyan: #06B6D4;
+      --cyan-bg: #ECFEFF;
+      --green: #10B981;
+      --green-bg: #ECFDF5;
+      --orange: #F59E0B;
+      --orange-bg: #FFFBEB;
+      --red: #EF4444;
+      --red-bg: #FEF2F2;
+      --purple: #8B5CF6;
+      --purple-bg: #F5F3FF;
+
+      --bg: #F1F5F9;
+      --surface: #FFFFFF;
+      --surface-2: #F8FAFC;
+      --surface-3: #E2E8F0;
+      --text: #0F172A;
+      --text-2: #334155;
+      --text-muted: #64748B;
+      --text-dim: #94A3B8;
+      --border: rgba(0,0,0,0.06);
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+
+      --font: 'Plus Jakarta Sans', 'Noto Sans Thai', sans-serif;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      --grab-green: #00B14F;
+      --grab-green-dark: #009A44;
+    }
+
+    html.dark {
+      --primary-bg: #0C1A3D;
+      --cyan-bg: #0A1E22;
+      --green-bg: #0A1F17;
+      --orange-bg: #1A1508;
+      --red-bg: #1A0808;
+      --purple-bg: #15102B;
+      --bg: #0B1222;
+      --surface: #111B2E;
+      --surface-2: #162032;
+      --surface-3: #1E2D45;
+      --text: #E2E8F0;
+      --text-2: #CBD5E1;
+      --text-muted: #64748B;
+      --text-dim: #475569;
+      --border: rgba(255,255,255,0.06);
+      --shadow: none;
+      --shadow-lg: none;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* ===== APP SHELL ===== */
+    .app { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+    .app-content { flex: 1; padding-bottom: 72px; }
+    .view { display: none; animation: fadeIn 300ms var(--ease); }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ===== HEADER ===== */
+    .header {
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      padding: 1rem 1.25rem;
+      padding-top: max(1rem, env(safe-area-inset-top));
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 60px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 430 60'%3E%3Cpath d='M0 60 L0 35 Q50 20 100 30 Q150 42 200 28 Q250 14 300 25 Q350 36 400 22 L430 18 L430 60Z' fill='rgba(255,255,255,0.05)'/%3E%3C/svg%3E") no-repeat;
+      background-size: cover;
+    }
+    .header-top { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
+    .header-brand { display: flex; align-items: center; gap: 0.6rem; }
+    .header-logo {
+      width: 40px; height: 40px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(8px);
+      font-size: 1.2rem;
+    }
+    .header-info h1 { font-size: 0.95rem; font-weight: 800; letter-spacing: -0.01em; }
+    .header-info p { font-size: 0.65rem; opacity: 0.75; margin-top: 1px; }
+    .header-actions { display: flex; gap: 0.4rem; }
+    .header-btn {
+      width: 36px; height: 36px; border-radius: 10px; border: none;
+      background: rgba(255,255,255,0.12); backdrop-filter: blur(8px);
+      color: white; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 200ms; position: relative;
+    }
+    .header-btn:active { transform: scale(0.92); }
+    .header-btn svg { width: 18px; height: 18px; }
+    .badge-dot {
+      position: absolute; top: 6px; right: 6px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #EF4444; border: 2px solid var(--primary);
+    }
+
+    /* Weather bar */
+    .weather-bar {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-top: 0.75rem; position: relative; z-index: 1;
+      font-size: 0.7rem; opacity: 0.85;
+    }
+    .weather-item { display: flex; align-items: center; gap: 0.25rem; }
+
+    /* ===== BOTTOM NAV ===== */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 430px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding-bottom: max(0.3rem, env(safe-area-inset-bottom));
+      z-index: 100;
+      transition: transform 300ms var(--ease);
+    }
+    .bottom-nav.hidden { transform: translateX(-50%) translateY(100%); }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 0.5rem 0 0.3rem; gap: 0.15rem;
+      cursor: pointer; color: var(--text-muted); border: none; background: none;
+      font-family: var(--font); font-size: 0.6rem; font-weight: 500;
+      transition: all 200ms;
+      position: relative;
+    }
+    .nav-item svg { width: 22px; height: 22px; transition: all 200ms; }
+    .nav-item.active { color: var(--primary); }
+    .nav-item.active svg { stroke-width: 2.5; }
+    .nav-item.active::after {
+      content: ''; position: absolute; top: 0; left: 25%; right: 25%;
+      height: 2px; background: var(--primary); border-radius: 2px;
+    }
+
+    /* ===== HOME VIEW ===== */
+    .section-pad { padding: 1rem 1.25rem; }
+
+    .quick-actions {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; padding: 1rem 1.25rem;
+    }
+    .quick-action {
+      background: var(--surface); border-radius: 14px;
+      padding: 1.1rem; border: 1px solid var(--border);
+      cursor: pointer; transition: all 200ms var(--ease);
+      display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .quick-action:active { transform: scale(0.97); }
+    .quick-action:hover { box-shadow: var(--shadow-lg); }
+    .qa-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+    }
+    .qa-icon.report { background: var(--red-bg); }
+    .qa-icon.track { background: var(--cyan-bg); }
+    .qa-icon.queue { background: var(--purple-bg); }
+    .qa-icon.pay { background: var(--green-bg); }
+    .qa-title { font-size: 0.85rem; font-weight: 700; }
+    .qa-desc { font-size: 0.68rem; color: var(--text-muted); line-height: 1.4; }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.5rem 1.25rem 0.5rem;
+    }
+    .section-header h2 { font-size: 0.9rem; font-weight: 700; }
+    .section-header a { font-size: 0.72rem; color: var(--primary); text-decoration: none; font-weight: 600; }
+
+    /* Active issue card */
+    .issue-card {
+      background: var(--surface); border-radius: 14px; margin: 0 1.25rem;
+      padding: 1rem; border: 1px solid var(--border); cursor: pointer;
+      transition: all 200ms; margin-bottom: 0.6rem;
+    }
+    .issue-card:hover { box-shadow: var(--shadow-lg); }
+    .issue-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+    .issue-ref { font-size: 0.7rem; font-weight: 700; color: var(--primary); font-family: monospace; }
+    .status-badge {
+      font-size: 0.6rem; font-weight: 700; padding: 0.2rem 0.6rem;
+      border-radius: 20px; text-transform: uppercase; letter-spacing: 0.02em;
+    }
+    .status-badge.dispatched { background: var(--cyan-bg); color: var(--cyan); }
+    .status-badge.pending { background: var(--orange-bg); color: var(--orange); }
+    .status-badge.completed { background: var(--green-bg); color: var(--green); }
+    .issue-title { font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .issue-meta { font-size: 0.68rem; color: var(--text-muted); display: flex; gap: 0.75rem; }
+
+    /* Stats row */
+    .stats-row {
+      display: flex; gap: 0.5rem; padding: 0 1.25rem; overflow-x: auto;
+      scrollbar-width: none; margin-bottom: 1rem;
+    }
+    .stats-row::-webkit-scrollbar { display: none; }
+    .stat-chip {
+      background: var(--surface); border-radius: 12px; padding: 0.75rem 1rem;
+      border: 1px solid var(--border); min-width: 110px; flex-shrink: 0;
+    }
+    .stat-chip .num { font-size: 1.3rem; font-weight: 800; color: var(--primary); }
+    .stat-chip .label { font-size: 0.62rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+    /* ===== REPORT VIEW (AI CHAT) ===== */
+    .chat-container { display: flex; flex-direction: column; height: calc(100vh - 160px); height: calc(100dvh - 160px); }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+    .chat-input-area {
+      padding: 0.75rem 1.25rem; background: var(--surface);
+      border-top: 1px solid var(--border); display: flex; gap: 0.5rem; align-items: flex-end;
+    }
+    .chat-input {
+      flex: 1; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 0.6rem 1rem; font-family: var(--font);
+      font-size: 0.85rem; color: var(--text); outline: none; resize: none;
+      min-height: 40px; max-height: 120px; line-height: 1.4;
+    }
+    .chat-input::placeholder { color: var(--text-dim); }
+    .chat-input:focus { border-color: var(--primary-light); }
+    .chat-send {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      background: var(--primary); color: white;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 200ms; flex-shrink: 0;
+    }
+    .chat-send:active { transform: scale(0.9); }
+    .chat-send:disabled { opacity: 0.4; }
+    .chat-send svg { width: 18px; height: 18px; }
+
+    /* Chat bubbles */
+    .msg { max-width: 85%; animation: msgIn 300ms var(--ease); }
+    .msg.bot { align-self: flex-start; }
+    .msg.user { align-self: flex-end; }
+    @keyframes msgIn { from { opacity: 0; transform: translateY(8px) scale(0.95); } }
+
+    .msg-bubble {
+      padding: 0.7rem 1rem; border-radius: 16px; font-size: 0.82rem;
+      line-height: 1.5; word-break: break-word;
+    }
+    .msg.bot .msg-bubble {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    .msg.user .msg-bubble {
+      background: var(--primary); color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .msg-name { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.2rem; }
+
+    /* Typing indicator */
+    .typing-dots { display: flex; gap: 4px; padding: 0.5rem 0; }
+    .typing-dots span {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim);
+      animation: typingBounce 1.4s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* AI Result Card */
+    .ai-result {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; margin-top: 0.5rem;
+    }
+    .ai-result-header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white; padding: 0.6rem 0.85rem; font-size: 0.72rem; font-weight: 700;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .ai-result-body { padding: 0.75rem 0.85rem; }
+    .ai-field { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+    .ai-field:last-child { border: none; }
+    .ai-field .label { font-size: 0.7rem; color: var(--text-muted); }
+    .ai-field .value { font-size: 0.75rem; font-weight: 600; text-align: right; }
+
+    /* Quick replies */
+    .quick-replies { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+    .qr-btn {
+      padding: 0.4rem 0.75rem; border-radius: 20px; border: 1.5px solid var(--primary);
+      background: var(--primary-bg); color: var(--primary); font-size: 0.72rem;
+      font-weight: 600; cursor: pointer; font-family: var(--font); transition: all 200ms;
+    }
+    .qr-btn:active { transform: scale(0.95); background: var(--primary); color: white; }
+
+    /* Complaint Form */
+    .complaint-form { padding: 1rem 1.25rem; animation: fadeIn 300ms var(--ease); }
+    .form-group { margin-bottom: 1rem; }
+    .form-label { font-size: 0.72rem; font-weight: 600; color: var(--text-2); margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.3rem; }
+    .form-input {
+      width: 100%; padding: 0.65rem 0.85rem; border-radius: 10px; border: 1.5px solid var(--border);
+      background: var(--surface); font-family: var(--font); font-size: 0.8rem; color: var(--text);
+      transition: all 200ms; outline: none;
+    }
+    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29,78,216,0.1); }
+    .form-row { display: flex; gap: 0.5rem; }
+    .form-row .form-group { flex: 1; }
+    .form-btn-row { display: flex; gap: 0.5rem; }
+    .form-btn {
+      flex: 1; padding: 0.65rem; border-radius: 10px; border: 1.5px solid var(--border);
+      background: var(--surface); font-family: var(--font); font-size: 0.75rem; font-weight: 600;
+      color: var(--text-2); cursor: pointer; display: flex; align-items: center;
+      justify-content: center; gap: 0.4rem; transition: all 200ms;
+    }
+    .form-btn:active { transform: scale(0.97); }
+    .form-btn svg { width: 16px; height: 16px; }
+    .submit-btn {
+      width: 100%; padding: 0.85rem; border-radius: 12px; border: none;
+      background: var(--primary); color: white; font-family: var(--font);
+      font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 200ms;
+      margin-top: 0.5rem;
+    }
+    .submit-btn:active { transform: scale(0.98); }
+    .submit-btn:disabled { opacity: 0.5; }
+
+    /* ===== TRACK VIEW ===== */
+    .track-view { position: relative; }
+    .track-search {
+      padding: 0.75rem 1.25rem; display: flex; gap: 0.5rem;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .track-search input {
+      flex: 1; padding: 0.6rem 0.85rem; border-radius: 10px;
+      border: 1.5px solid var(--border); background: var(--surface-2);
+      font-family: var(--font); font-size: 0.8rem; color: var(--text); outline: none;
+    }
+    .track-search input:focus { border-color: var(--primary); }
+    .track-search button {
+      padding: 0 1rem; border-radius: 10px; border: none;
+      background: var(--primary); color: white; font-weight: 700;
+      font-family: var(--font); font-size: 0.8rem; cursor: pointer;
+    }
+
+    /* Tracking map view (Grab-style) */
+    .tracking-active { position: relative; }
+    #tracking-map { width: 100%; height: 55vh; height: 55dvh; z-index: 1; }
+
+    /* Back button on map */
+    .map-back {
+      position: absolute; top: 12px; left: 12px; z-index: 500;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--surface); border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text);
+    }
+    .map-back svg { width: 20px; height: 20px; }
+
+    /* ETA badge on map */
+    .map-eta {
+      position: absolute; top: 12px; right: 12px; z-index: 500;
+      background: var(--grab-green); color: white; padding: 0.4rem 0.85rem;
+      border-radius: 20px; font-size: 0.75rem; font-weight: 800;
+      box-shadow: 0 2px 8px rgba(0,177,79,0.3);
+      display: flex; align-items: center; gap: 0.3rem;
+    }
+
+    /* Status strip under map */
+    .tracking-status {
+      background: var(--grab-green); color: white;
+      padding: 0.6rem 1.25rem; font-size: 0.8rem; font-weight: 700;
+      display: flex; align-items: center; gap: 0.5rem;
+      animation: statusPulse 2s infinite;
+    }
+    .tracking-status.arrived { background: var(--primary); animation: none; }
+    .tracking-status.working { background: var(--orange); animation: none; }
+    .tracking-status.done { background: var(--green); animation: none; }
+    @keyframes statusPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: white; animation: blink 1.2s infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* Officer info panel */
+    .officer-panel {
+      background: var(--surface); padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .officer-row { display: flex; align-items: center; gap: 0.75rem; }
+    .officer-avatar {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 1.2rem; font-weight: 800; flex-shrink: 0;
+    }
+    .officer-info { flex: 1; }
+    .officer-name { font-size: 0.85rem; font-weight: 700; }
+    .officer-dept { font-size: 0.68rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.25rem; }
+    .officer-actions { display: flex; gap: 0.4rem; }
+    .officer-btn {
+      width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid var(--border);
+      background: var(--surface); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 200ms; color: var(--primary);
+    }
+    .officer-btn:active { transform: scale(0.9); background: var(--primary-bg); }
+    .officer-btn svg { width: 18px; height: 18px; }
+
+    /* Complaint info */
+    .complaint-info { padding: 0.75rem 1.25rem; background: var(--surface-2); }
+    .ci-ref { font-size: 0.68rem; font-weight: 700; color: var(--primary); font-family: monospace; }
+    .ci-issue { font-size: 0.78rem; font-weight: 600; margin: 0.2rem 0; }
+    .ci-location { font-size: 0.68rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.2rem; }
+
+    /* Timeline */
+    .timeline { padding: 1rem 1.25rem; }
+    .timeline-item { display: flex; gap: 0.75rem; position: relative; padding-bottom: 1.25rem; }
+    .timeline-item:last-child { padding-bottom: 0; }
+    .timeline-item::before {
+      content: ''; position: absolute; left: 13px; top: 28px;
+      bottom: 0; width: 2px; background: var(--surface-3);
+    }
+    .timeline-item:last-child::before { display: none; }
+    .timeline-item.done::before { background: var(--green); }
+    .timeline-item.active::before { background: var(--primary); border-style: dashed; }
+    .tl-dot {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 800; position: relative; z-index: 2;
+    }
+    .tl-dot.done { background: var(--green); color: white; }
+    .tl-dot.active { background: var(--primary); color: white; animation: tlPulse 2s infinite; }
+    .tl-dot.pending { background: var(--surface-3); color: var(--text-dim); }
+    @keyframes tlPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(29,78,216,0.3); } 50% { box-shadow: 0 0 0 8px rgba(29,78,216,0); } }
+    .tl-content { flex: 1; padding-top: 0.2rem; }
+    .tl-title { font-size: 0.78rem; font-weight: 600; }
+    .tl-time { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.1rem; }
+    .tl-title.pending { color: var(--text-dim); }
+
+    /* Officer marker on map */
+    .officer-marker {
+      position: relative; width: 48px; height: 48px;
+    }
+    .officer-marker .pulse-ring {
+      position: absolute; inset: 0;
+      border-radius: 50%; border: 3px solid var(--grab-green);
+      animation: pulseRing 2s infinite;
+    }
+    @keyframes pulseRing {
+      0% { transform: scale(0.8); opacity: 1; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+    .officer-marker .dot {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--grab-green); border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; transition: transform 300ms;
+    }
+    .dest-marker {
+      width: 36px; height: 36px; position: relative;
+    }
+    .dest-marker .pin {
+      width: 32px; height: 32px; border-radius: 50% 50% 50% 0;
+      background: var(--red); border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      transform: rotate(-45deg);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .dest-marker .pin span { transform: rotate(45deg); font-size: 0.8rem; }
+    .office-marker .pin {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--primary); border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    /* ===== NOTIFICATIONS VIEW ===== */
+    .notif-item {
+      display: flex; gap: 0.75rem; padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border); cursor: pointer;
+      transition: background 200ms;
+    }
+    .notif-item:active { background: var(--surface-2); }
+    .notif-item.unread { background: var(--primary-bg); }
+    .notif-icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+    .notif-body { flex: 1; }
+    .notif-title { font-size: 0.78rem; font-weight: 600; }
+    .notif-desc { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem; }
+    .notif-time { font-size: 0.62rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+    /* ===== PROFILE VIEW ===== */
+    .profile-header { text-align: center; padding: 2rem 1.25rem 1rem; }
+    .profile-avatar {
+      width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 0.75rem;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 1.5rem; font-weight: 900;
+    }
+    .profile-name { font-size: 1.1rem; font-weight: 800; }
+    .profile-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem; }
+    .profile-stats {
+      display: flex; justify-content: center; gap: 2rem; margin-top: 1rem;
+      padding: 1rem; background: var(--surface); border-radius: 14px;
+      margin: 1rem 1.25rem; border: 1px solid var(--border);
+    }
+    .profile-stat { text-align: center; }
+    .profile-stat .num { font-size: 1.2rem; font-weight: 800; color: var(--primary); }
+    .profile-stat .label { font-size: 0.62rem; color: var(--text-muted); }
+    .profile-menu { padding: 0 1.25rem; }
+    .pm-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.85rem 0; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: opacity 200ms;
+    }
+    .pm-item:active { opacity: 0.6; }
+    .pm-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .pm-label { flex: 1; font-size: 0.82rem; font-weight: 500; }
+    .pm-arrow { color: var(--text-dim); }
+    .pm-arrow svg { width: 16px; height: 16px; }
+
+    /* ===== CONSENT & REGISTRATION SCREENS ===== */
+    .fullscreen-overlay {
+      position: fixed; inset: 0; z-index: 2000;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      max-width: 430px; margin: 0 auto;
+      animation: fadeIn 400ms var(--ease);
+    }
+    .consent-scroll { flex: 1; overflow-y: auto; padding: 1.5rem 1.25rem 1rem; }
+    .consent-logo { text-align: center; margin-bottom: 1.5rem; }
+    .consent-logo .icon { font-size: 3rem; margin-bottom: 0.5rem; }
+    .consent-logo h2 { font-size: 1.1rem; font-weight: 800; }
+    .consent-logo p { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .consent-section { margin-bottom: 1.25rem; }
+    .consent-section h3 {
+      font-size: 0.82rem; font-weight: 700; margin-bottom: 0.5rem;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .consent-section ul { padding-left: 1.25rem; }
+    .consent-section li { font-size: 0.75rem; color: var(--text-2); line-height: 1.6; margin-bottom: 0.25rem; }
+    .consent-section p { font-size: 0.75rem; color: var(--text-2); line-height: 1.6; }
+    .consent-highlight {
+      background: var(--primary-bg); border-left: 3px solid var(--primary);
+      padding: 0.75rem 1rem; border-radius: 0 10px 10px 0;
+      font-size: 0.75rem; color: var(--text-2); line-height: 1.6;
+    }
+    .consent-footer {
+      padding: 1rem 1.25rem; border-top: 1px solid var(--border);
+      background: var(--surface); padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+    .consent-check {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      margin-bottom: 0.75rem; cursor: pointer;
+    }
+    .consent-check input[type="checkbox"] {
+      width: 20px; height: 20px; margin-top: 1px; accent-color: var(--primary);
+      flex-shrink: 0;
+    }
+    .consent-check label { font-size: 0.78rem; line-height: 1.5; cursor: pointer; }
+    .consent-btn {
+      width: 100%; padding: 0.85rem; border-radius: 12px; border: none;
+      font-family: var(--font); font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; transition: all 200ms;
+    }
+    .consent-btn.accept { background: var(--primary); color: white; }
+    .consent-btn.accept:disabled { opacity: 0.4; cursor: not-allowed; }
+    .consent-btn.decline {
+      background: none; border: none; color: var(--text-muted);
+      font-size: 0.75rem; margin-top: 0.5rem; padding: 0.5rem;
+    }
+
+    /* Registration form — 2-step */
+    .reg-form { padding: 0.5rem 1.25rem 2rem; }
+    .reg-form .form-group { margin-bottom: 1rem; }
+    .reg-form select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem; }
+    .reg-header { text-align: center; margin-bottom: 0.75rem; padding: 1.25rem 1.25rem 0; }
+    .reg-header img { width: 80px; height: 80px; margin: 0 auto 0.5rem; display: block; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
+    .reg-header h2 { font-size: 1.1rem; font-weight: 800; }
+    .reg-header p { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .reg-progress { padding: 0 1.25rem; margin-bottom: 1rem; }
+    .reg-progress-bar { height: 4px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
+    .reg-progress-fill { height: 100%; background: var(--grab-green); border-radius: 2px; transition: width 400ms var(--ease); }
+    .reg-step-label { font-size: 0.68rem; color: var(--text-muted); text-align: center; margin-top: 0.4rem; }
+    .reg-step { display: none; animation: fadeIn 300ms var(--ease); }
+    .reg-step.active { display: block; }
+    .reg-row { display: flex; gap: 0.75rem; }
+    .reg-row > .form-group { flex: 1; }
+    .gender-select { display: flex; gap: 0.75rem; }
+    .gender-option {
+      flex: 1; padding: 0.75rem; border-radius: 12px; border: 2px solid var(--border);
+      background: var(--surface); cursor: pointer; text-align: center; transition: all 200ms;
+    }
+    .gender-option:active { transform: scale(0.97); }
+    .gender-option.selected { border-color: var(--primary); background: var(--primary-bg); }
+    .gender-option .g-icon { font-size: 2rem; line-height: 1; }
+    .gender-option .g-icon.male { color: #2196F3; }
+    .gender-option .g-icon.female { color: #E91E63; }
+    .gender-option .g-label { font-size: 0.78rem; font-weight: 600; margin-top: 0.25rem; }
+    .reg-footer {
+      padding: 1rem 1.25rem; border-top: 1px solid var(--border);
+      background: var(--surface); padding-bottom: max(1rem, env(safe-area-inset-bottom));
+      display: flex; gap: 0.75rem;
+    }
+    .reg-footer .reg-btn {
+      flex: 1; padding: 0.85rem; border-radius: 12px; border: 2px solid var(--border);
+      font-family: var(--font); font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; transition: all 200ms; text-align: center;
+    }
+    .reg-footer .reg-btn:active { transform: scale(0.98); }
+    .reg-footer .reg-btn.primary { background: var(--grab-green); color: white; border-color: var(--grab-green); }
+    .reg-footer .reg-btn.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .reg-footer .reg-btn.secondary { background: var(--surface); color: var(--text-2); }
+
+    /* GPS Map picker */
+    .gps-picker { position: relative; margin-bottom: 0.5rem; }
+    #gpsMap { width: 100%; height: 200px; border-radius: 12px; border: 1px solid var(--border); z-index: 1; }
+    .gps-crosshair {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%);
+      z-index: 500; font-size: 2rem; pointer-events: none;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+    .gps-coords {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.7rem; color: var(--text-muted); font-family: monospace;
+      margin-top: 0.4rem;
+    }
+    .gps-coords .pin-icon { color: var(--red); }
+    .gps-btn-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .gps-btn {
+      flex: 1; padding: 0.55rem; border-radius: 8px; border: 1.5px solid var(--border);
+      background: var(--surface); font-family: var(--font); font-size: 0.72rem; font-weight: 600;
+      color: var(--text-2); cursor: pointer; display: flex; align-items: center;
+      justify-content: center; gap: 0.3rem; transition: all 200ms;
+    }
+    .gps-btn:active { transform: scale(0.97); }
+    .gps-btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .gps-btn svg { width: 14px; height: 14px; }
+    .gps-loading { text-align: center; padding: 1rem; font-size: 0.75rem; color: var(--text-muted); }
+
+    /* ===== UTILITIES ===== */
+    .hidden { display: none !important; }
+    .leaflet-control-attribution { font-size: 8px !important; }
+
+    /* Success overlay */
+    .success-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000; animation: fadeIn 200ms;
+    }
+    .success-overlay.show { display: flex; }
+    .success-card {
+      background: var(--surface); border-radius: 20px; padding: 2rem;
+      text-align: center; margin: 1.25rem; max-width: 340px; width: 100%;
+      animation: popIn 400ms var(--ease);
+    }
+    @keyframes popIn { from { transform: scale(0.8); opacity: 0; } }
+    .success-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+    .success-title { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.3rem; }
+    .success-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+    .success-ref { font-family: monospace; font-size: 1rem; font-weight: 800; color: var(--primary); margin: 0.75rem 0; }
+    .success-btn {
+      margin-top: 1rem; padding: 0.75rem 2rem; border-radius: 12px;
+      border: none; background: var(--primary); color: white;
+      font-size: 0.85rem; font-weight: 700; cursor: pointer;
+      font-family: var(--font);
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== PDPA CONSENT SCREEN ===== -->
+  <div class="fullscreen-overlay hidden" id="consentScreen">
+    <div class="consent-scroll">
+      <div class="consent-logo">
+        <img src="logo-ppnr.png" alt="โลโก้เทศบาล" style="width:80px;height:80px;margin:0 auto 0.5rem;display:block;border-radius:50%;border:2px solid var(--border);">
+        <h2>เทศบาลตำบลพลับพลานารายณ์</h2>
+        <p>นโยบายความเป็นส่วนตัว (PDPA)</p>
+      </div>
+
+      <div class="consent-highlight">
+        เทศบาลตำบลพลับพลานารายณ์ ให้ความสำคัญกับการคุ้มครองข้อมูลส่วนบุคคลของท่าน ตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)
+      </div>
+
+      <div class="consent-section">
+        <h3>📋 ข้อมูลที่จัดเก็บ</h3>
+        <ul>
+          <li>ชื่อ-นามสกุล และเบอร์โทรศัพท์</li>
+          <li>ข้อมูลโปรไฟล์ LINE (ชื่อ, รูปภาพ)</li>
+          <li>ตำแหน่ง GPS เมื่อท่านปักหมุดจุดร้องเรียน</li>
+          <li>ภาพถ่ายประกอบการร้องเรียน (ถ้ามี)</li>
+          <li>เนื้อหาการร้องเรียน สถานที่ และที่อยู่</li>
+        </ul>
+      </div>
+
+      <div class="consent-section">
+        <h3>🎯 วัตถุประสงค์</h3>
+        <ul>
+          <li>รับเรื่องร้องเรียน/ร้องทุกข์ และติดตามผล</li>
+          <li>ส่งต่อเรื่องให้กอง/ฝ่ายที่เกี่ยวข้องดำเนินการ</li>
+          <li>แจ้งสถานะและผลดำเนินงานกลับให้ท่าน</li>
+          <li>ปรับปรุงคุณภาพการให้บริการของเทศบาล</li>
+          <li>จัดทำสถิติและรายงานภาพรวม (ไม่ระบุตัวตน)</li>
+        </ul>
+      </div>
+
+      <div class="consent-section">
+        <h3>👥 ผู้เข้าถึงข้อมูล</h3>
+        <p>เจ้าหน้าที่เทศบาลตำบลพลับพลานารายณ์ ที่ได้รับมอบหมายเท่านั้น โดยจำกัดเฉพาะกอง/ฝ่ายที่เกี่ยวข้องกับเรื่องร้องเรียนของท่าน</p>
+      </div>
+
+      <div class="consent-section">
+        <h3>⏱️ ระยะเวลาเก็บรักษา</h3>
+        <p>ข้อมูลจะถูกเก็บรักษาตลอดระยะเวลาที่ท่านใช้บริการ และไม่เกิน 5 ปี หลังจากยุติการใช้บริการ ตามระเบียบงานสารบรรณ</p>
+      </div>
+
+      <div class="consent-section">
+        <h3>🔒 สิทธิของท่าน</h3>
+        <ul>
+          <li>ขอเข้าถึง แก้ไข หรือลบข้อมูลส่วนบุคคล</li>
+          <li>ขอระงับการใช้ข้อมูล หรือถอนความยินยอม</li>
+          <li>ร้องเรียนหากพบว่าข้อมูลถูกใช้ไม่เหมาะสม</li>
+        </ul>
+        <p style="margin-top:0.5rem;font-size:0.7rem;color:var(--text-dim);">ติดต่อ: สำนักปลัดเทศบาลตำบลพลับพลานารายณ์<br>9 หมู่ 14 ต.คลองนารายณ์ อ.เมืองจันทบุรี จ.จันทบุรี 22000<br>โทร. 0-3941-8498 | อีเมล: admin@ppnr.go.th</p>
+      </div>
+    </div>
+    <div class="consent-footer">
+      <div class="consent-check">
+        <input type="checkbox" id="consentCheckbox" onchange="document.getElementById('consentAcceptBtn').disabled = !this.checked">
+        <label for="consentCheckbox">ข้าพเจ้าได้อ่านและยินยอมให้เทศบาลตำบลพลับพลานารายณ์ จัดเก็บและใช้ข้อมูลส่วนบุคคลตามวัตถุประสงค์ข้างต้น</label>
+      </div>
+      <button class="consent-btn accept" id="consentAcceptBtn" disabled onclick="acceptConsent()">ยินยอม และดำเนินการต่อ</button>
+      <button class="consent-btn decline" onclick="declineConsent()">ไม่ยินยอม</button>
+    </div>
+  </div>
+
+  <!-- ===== REGISTRATION SCREEN (2-step) ===== -->
+  <div class="fullscreen-overlay hidden" id="registerScreen">
+    <div class="consent-scroll">
+      <div class="reg-header">
+        <img src="logo-ppnr.png" alt="โลโก้เทศบาล" id="regLogo">
+        <h2>ลงทะเบียนผู้ใช้งาน</h2>
+        <p>กรอกข้อมูลเพื่อใช้บริการเทศบาลตำบลพลับพลานารายณ์</p>
+      </div>
+      <div class="reg-progress">
+        <div class="reg-progress-bar"><div class="reg-progress-fill" id="regProgressFill" style="width:50%"></div></div>
+        <div class="reg-step-label" id="regStepLabel">ขั้นตอน 1/2 — ข้อมูลส่วนตัว</div>
+      </div>
+
+      <!-- Step 1: ข้อมูลส่วนตัว -->
+      <div class="reg-step active" id="regStep1">
+        <div class="reg-form">
+          <div class="form-group">
+            <div class="form-label">คำนำหน้า <span style="color:var(--red)">*</span></div>
+            <select class="form-input" id="regTitle">
+              <option value="">เลือกคำนำหน้า</option>
+              <option value="นาย">นาย</option>
+              <option value="นาง">นาง</option>
+              <option value="นางสาว">นางสาว</option>
+              <option value="เด็กชาย">เด็กชาย</option>
+              <option value="เด็กหญิง">เด็กหญิง</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">ชื่อ <span style="color:var(--red)">*</span></div>
+            <input type="text" class="form-input" id="regFirstName" placeholder="ชื่อ">
+          </div>
+          <div class="form-group">
+            <div class="form-label">นามสกุล <span style="color:var(--red)">*</span></div>
+            <input type="text" class="form-input" id="regLastName" placeholder="นามสกุล">
+          </div>
+          <div class="form-group">
+            <div class="form-label">เพศ <span style="color:var(--red)">*</span></div>
+            <div class="gender-select">
+              <div class="gender-option" onclick="selectGender(this, 'male')">
+                <div class="g-icon male">♂</div>
+                <div class="g-label">ชาย</div>
+              </div>
+              <div class="gender-option" onclick="selectGender(this, 'female')">
+                <div class="g-icon female">♀</div>
+                <div class="g-label">หญิง</div>
+              </div>
+            </div>
+            <input type="hidden" id="regGender" value="">
+          </div>
+          <div class="form-group">
+            <div class="form-label">เบอร์โทรศัพท์ <span style="color:var(--red)">*</span></div>
+            <input type="tel" class="form-input" id="regPhone" placeholder="เบอร์โทรศัพท์" maxlength="12">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: ข้อมูลที่พักอาศัย -->
+      <div class="reg-step" id="regStep2">
+        <div class="reg-form">
+          <div class="reg-row">
+            <div class="form-group">
+              <div class="form-label">บ้านเลขที่ <span style="color:var(--red)">*</span></div>
+              <input type="text" class="form-input" id="regHouseNo" placeholder="บ้านเลขที่">
+            </div>
+            <div class="form-group">
+              <div class="form-label">หมู่</div>
+              <input type="text" class="form-input" id="regMoo" placeholder="หมู่">
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="form-label">ตรอก/ซอย</div>
+            <input type="text" class="form-input" id="regSoi" placeholder="ตรอก/ซอย">
+          </div>
+          <div class="form-group">
+            <div class="form-label">ถนน</div>
+            <input type="text" class="form-input" id="regRoad" placeholder="ถนน">
+          </div>
+          <div class="form-group">
+            <div class="form-label">จังหวัด <span style="color:var(--red)">*</span></div>
+            <select class="form-input" id="regProvince" onchange="onProvinceChange()">
+              <option value="">โปรดเลือก</option>
+              <option value="จันทบุรี" selected>จันทบุรี</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">อำเภอ/เขต <span style="color:var(--red)">*</span></div>
+            <select class="form-input" id="regAmphoe" onchange="onAmphoeChange()">
+              <option value="">โปรดเลือก</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">ตำบล/แขวง <span style="color:var(--red)">*</span></div>
+            <select class="form-input" id="regTambon">
+              <option value="">โปรดเลือก</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">รหัสไปรษณีย์ <span style="color:var(--red)">*</span></div>
+            <input type="text" class="form-input" id="regZipcode" placeholder="รหัสไปรษณีย์" maxlength="5">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="reg-footer" id="regFooter">
+      <button class="reg-btn primary" id="regNextBtn" onclick="regNextStep()">ถัดไป</button>
+    </div>
+  </div>
+
+  <div class="app" id="app">
+    <!-- ===== HEADER ===== -->
+    <header class="header" id="mainHeader">
+      <div class="header-top">
+        <div class="header-brand">
+          <div class="header-logo"><img src="logo-ppnr.png" alt="โลโก้" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+          <div class="header-info">
+            <h1>พลับพลานารายณ์</h1>
+            <p>เทศบาลตำบล อ.เมืองจันทบุรี</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" onclick="toggleTheme()"><i data-lucide="moon" class="theme-icon"></i></button>
+          <button class="header-btn" onclick="switchView('notifications')">
+            <i data-lucide="bell"></i>
+            <span class="badge-dot"></span>
+          </button>
+        </div>
+      </div>
+      <div class="weather-bar">
+        <div class="weather-item">☀️ 33°C</div>
+        <div class="weather-item">💨 PM2.5: <span style="color:#10B981;font-weight:700">18</span></div>
+        <div class="weather-item">💧 72%</div>
+        <div class="weather-item" style="margin-left:auto;font-size:0.65rem;opacity:0.7" id="clockDisplay">--:--</div>
+      </div>
+    </header>
+
+    <!-- ===== APP CONTENT ===== -->
+    <div class="app-content">
+
+      <!-- HOME VIEW -->
+      <div class="view active" id="view-home">
+        <div class="stats-row" style="padding-top:1rem;">
+          <div class="stat-chip">
+            <div class="num" id="statTotal">12</div>
+            <div class="label">เรื่องทั้งหมด</div>
+          </div>
+          <div class="stat-chip">
+            <div class="num" style="color:var(--orange)">3</div>
+            <div class="label">กำลังดำเนินการ</div>
+          </div>
+          <div class="stat-chip">
+            <div class="num" style="color:var(--green)">9</div>
+            <div class="label">เสร็จสิ้นแล้ว</div>
+          </div>
+          <div class="stat-chip">
+            <div class="num" style="color:var(--cyan)">4.7⭐</div>
+            <div class="label">ความพอใจ</div>
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <div class="quick-action" onclick="switchView('report')">
+            <div class="qa-icon report">📢</div>
+            <div class="qa-title">แจ้งปัญหา</div>
+            <div class="qa-desc">แจ้งเรื่องร้องเรียนผ่าน AI</div>
+          </div>
+          <div class="quick-action" onclick="switchView('track')">
+            <div class="qa-icon track">🗺️</div>
+            <div class="qa-title">ติดตามเรื่อง</div>
+            <div class="qa-desc">ดูสถานะแบบ Real-time</div>
+          </div>
+          <div class="quick-action" onclick="alert('เร็วๆ นี้!')">
+            <div class="qa-icon queue">🎫</div>
+            <div class="qa-title">นัดคิว</div>
+            <div class="qa-desc">จองคิวติดต่อราชการ</div>
+          </div>
+          <div class="quick-action" onclick="alert('เร็วๆ นี้!')">
+            <div class="qa-icon pay">💳</div>
+            <div class="qa-title">ชำระค่าบริการ</div>
+            <div class="qa-desc">จ่ายภาษี ค่าน้ำ ค่าขยะ</div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <h2>เรื่องที่กำลังดำเนินการ</h2>
+          <a href="#" onclick="switchView('track');return false;">ดูทั้งหมด</a>
+        </div>
+        <div class="issue-card" onclick="openTracking('CMP-20260219-0042')">
+          <div class="issue-top">
+            <span class="issue-ref">CMP-20260219-0042</span>
+            <span class="status-badge dispatched">🛵 เจ้าหน้าที่กำลังไป</span>
+          </div>
+          <div class="issue-title">ถนนชำรุดเป็นหลุม ซอย 5 หมู่ 3</div>
+          <div class="issue-meta">
+            <span>📍 หน้าวัดพลับพลา</span>
+            <span>🕐 วันนี้ 10:30</span>
+          </div>
+        </div>
+        <div class="issue-card">
+          <div class="issue-top">
+            <span class="issue-ref">CMP-20260218-0038</span>
+            <span class="status-badge pending">⏳ รอดำเนินการ</span>
+          </div>
+          <div class="issue-title">ไฟทางสาธารณะดับ 3 ดวง</div>
+          <div class="issue-meta">
+            <span>📍 ถนนสายหลัก หมู่ 1</span>
+            <span>🕐 เมื่อวาน 16:20</span>
+          </div>
+        </div>
+        <div class="issue-card">
+          <div class="issue-top">
+            <span class="issue-ref">CMP-20260217-0035</span>
+            <span class="status-badge completed">✅ เสร็จสิ้น</span>
+          </div>
+          <div class="issue-title">ท่อระบายน้ำอุดตัน</div>
+          <div class="issue-meta">
+            <span>📍 ซอย 2 หมู่ 5</span>
+            <span>🕐 2 วันก่อน</span>
+          </div>
+        </div>
+
+        <div class="section-header" style="margin-top:0.5rem">
+          <h2>📰 ข่าวสารเทศบาล</h2>
+        </div>
+        <div class="issue-card" style="cursor:default">
+          <div class="issue-title">🎉 กำหนดการจ่ายเบี้ยผู้สูงอายุ ประจำเดือน ก.พ. 2569</div>
+          <div class="issue-meta"><span>📅 19 ก.พ. 2569</span></div>
+        </div>
+        <div class="issue-card" style="cursor:default">
+          <div class="issue-title">🚰 แจ้งปิดน้ำประปา ซ่อมท่อ วันที่ 21-22 ก.พ.</div>
+          <div class="issue-meta"><span>📅 18 ก.พ. 2569</span></div>
+        </div>
+      </div>
+
+      <!-- REPORT VIEW (AI CHAT) -->
+      <div class="view" id="view-report">
+        <div class="chat-container" id="chatContainer">
+          <div class="chat-messages" id="chatMessages">
+            <!-- Messages inserted by JS -->
+          </div>
+          <div class="chat-input-area" id="chatInputArea">
+            <input type="text" class="chat-input" id="chatInput" placeholder="พิมพ์ปัญหาที่พบ..." autocomplete="off">
+            <button class="chat-send" id="chatSendBtn" onclick="handleChatSend()">
+              <i data-lucide="send"></i>
+            </button>
+          </div>
+        </div>
+        <!-- Complaint form (shown after AI analysis) -->
+        <div class="complaint-form hidden" id="complaintForm">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+            <h2 style="font-size:1rem;font-weight:800;">📝 ยืนยันข้อมูล</h2>
+            <button style="background:none;border:none;color:var(--primary);font-size:0.75rem;font-weight:600;cursor:pointer;" onclick="resetChat()">← แก้ไข</button>
+          </div>
+          <div class="form-group">
+            <div class="form-label">📢 ปัญหา</div>
+            <input type="text" class="form-input" id="formIssue" value="">
+          </div>
+          <div class="form-group">
+            <div class="form-label">📍 สถานที่</div>
+            <input type="text" class="form-input" id="formLocation" value="">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <div class="form-label">🏢 หมวดหมู่</div>
+              <input type="text" class="form-input" id="formCategory" value="" readonly style="background:var(--primary-bg);color:var(--primary);font-weight:600;">
+            </div>
+            <div class="form-group">
+              <div class="form-label">⚡ ระดับ</div>
+              <input type="text" class="form-input" id="formSeverity" value="" readonly style="background:var(--orange-bg);color:var(--orange);font-weight:600;">
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="form-label">📍 ปักหมุดตำแหน่ง</div>
+            <div class="gps-picker" id="gpsPicker">
+              <div id="gpsMap"></div>
+              <div class="gps-crosshair">📍</div>
+            </div>
+            <div class="gps-coords" id="gpsCoords">
+              <span class="pin-icon">📌</span>
+              <span id="gpsText">ยังไม่ได้ปักหมุด</span>
+            </div>
+            <div class="gps-btn-row">
+              <button class="gps-btn primary" onclick="getMyGPS()"><i data-lucide="crosshair"></i> ตำแหน่งปัจจุบัน</button>
+              <button class="gps-btn" onclick="alert('เปิดกล้อง...')"><i data-lucide="camera"></i> ถ่ายรูป</button>
+            </div>
+            <input type="hidden" id="formLat">
+            <input type="hidden" id="formLng">
+          </div>
+          <button class="submit-btn" onclick="submitComplaint()">✅ ส่งเรื่องร้องเรียน</button>
+        </div>
+      </div>
+
+      <!-- TRACK VIEW -->
+      <div class="view" id="view-track">
+        <!-- Search / List mode -->
+        <div id="trackList">
+          <div class="track-search">
+            <input type="text" placeholder="ค้นหาด้วยหมายเลข CMP-..." id="trackSearchInput">
+            <button onclick="searchComplaint()">ค้นหา</button>
+          </div>
+          <div class="section-header"><h2>เรื่องของฉัน</h2></div>
+          <div class="issue-card" onclick="openTracking('CMP-20260219-0042')">
+            <div class="issue-top">
+              <span class="issue-ref">CMP-20260219-0042</span>
+              <span class="status-badge dispatched">🛵 กำลังเดินทาง</span>
+            </div>
+            <div class="issue-title">ถนนชำรุดเป็นหลุม ซอย 5 หมู่ 3</div>
+            <div class="issue-meta"><span>📍 หน้าวัดพลับพลา</span><span>🕐 10:30</span></div>
+          </div>
+          <div class="issue-card">
+            <div class="issue-top">
+              <span class="issue-ref">CMP-20260218-0038</span>
+              <span class="status-badge pending">⏳ รอรับเรื่อง</span>
+            </div>
+            <div class="issue-title">ไฟทางสาธารณะดับ 3 ดวง</div>
+            <div class="issue-meta"><span>📍 ถนนสายหลัก หมู่ 1</span><span>🕐 เมื่อวาน</span></div>
+          </div>
+        </div>
+
+        <!-- Tracking active mode (Grab-style) -->
+        <div id="trackingActive" class="tracking-active hidden">
+          <div style="position:relative;">
+            <button class="map-back" onclick="closeTracking()"><i data-lucide="arrow-left"></i></button>
+            <div class="map-eta" id="mapEta">⏱️ <span id="etaText">กำลังคำนวณ...</span></div>
+            <div id="tracking-map"></div>
+          </div>
+          <div class="tracking-status" id="trackingStatus">
+            <span class="status-dot"></span>
+            <span id="statusText">เจ้าหน้าที่กำลังเดินทาง</span>
+          </div>
+          <div class="officer-panel">
+            <div class="officer-row">
+              <div class="officer-avatar">วช</div>
+              <div class="officer-info">
+                <div class="officer-name">นายวิชัย ช่างดี</div>
+                <div class="officer-dept">🏢 กองช่าง — ช่างโยธา</div>
+              </div>
+              <div class="officer-actions">
+                <button class="officer-btn" title="โทร"><i data-lucide="phone"></i></button>
+                <button class="officer-btn" title="แชท"><i data-lucide="message-circle"></i></button>
+              </div>
+            </div>
+          </div>
+          <div class="complaint-info">
+            <div class="ci-ref">CMP-20260219-0042</div>
+            <div class="ci-issue">ถนนชำรุดเป็นหลุม ซอย 5 หมู่ 3</div>
+            <div class="ci-location">📍 หน้าวัดพลับพลา ต.พลับพลา อ.เมือง จ.จันทบุรี</div>
+          </div>
+          <div class="timeline" id="trackingTimeline">
+            <div class="timeline-item done">
+              <div class="tl-dot done">✓</div>
+              <div class="tl-content">
+                <div class="tl-title">แจ้งเรื่องร้องเรียน</div>
+                <div class="tl-time">10:30 — ประชาชนแจ้งผ่าน AI Assistant</div>
+              </div>
+            </div>
+            <div class="timeline-item done">
+              <div class="tl-dot done">✓</div>
+              <div class="tl-content">
+                <div class="tl-title">รับเรื่อง — สำนักปลัด</div>
+                <div class="tl-time">10:32 — ส่งต่อกองช่าง</div>
+              </div>
+            </div>
+            <div class="timeline-item done">
+              <div class="tl-dot done">✓</div>
+              <div class="tl-content">
+                <div class="tl-title">มอบหมายเจ้าหน้าที่</div>
+                <div class="tl-time">10:35 — นายวิชัย ช่างดี</div>
+              </div>
+            </div>
+            <div class="timeline-item active" id="tlTravel">
+              <div class="tl-dot active">🛵</div>
+              <div class="tl-content">
+                <div class="tl-title" id="tlTravelTitle">กำลังเดินทาง</div>
+                <div class="tl-time" id="tlTravelTime">10:40 — ออกจากเทศบาลแล้ว</div>
+              </div>
+            </div>
+            <div class="timeline-item" id="tlArrive">
+              <div class="tl-dot pending" id="tlArriveDot">5</div>
+              <div class="tl-content">
+                <div class="tl-title pending" id="tlArriveTitle">ถึงจุดหมาย</div>
+                <div class="tl-time" id="tlArriveTime"></div>
+              </div>
+            </div>
+            <div class="timeline-item" id="tlWork">
+              <div class="tl-dot pending" id="tlWorkDot">6</div>
+              <div class="tl-content">
+                <div class="tl-title pending" id="tlWorkTitle">ดำเนินการแก้ไข</div>
+                <div class="tl-time" id="tlWorkTime"></div>
+              </div>
+            </div>
+            <div class="timeline-item" id="tlDone">
+              <div class="tl-dot pending" id="tlDoneDot">7</div>
+              <div class="tl-content">
+                <div class="tl-title pending" id="tlDoneTitle">เสร็จสิ้น</div>
+                <div class="tl-time" id="tlDoneTime"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTIFICATIONS VIEW -->
+      <div class="view" id="view-notifications">
+        <div class="section-header" style="padding-top:1rem"><h2>🔔 แจ้งเตือน</h2></div>
+        <div class="notif-item unread">
+          <div class="notif-icon" style="background:var(--cyan-bg)">🛵</div>
+          <div class="notif-body">
+            <div class="notif-title">เจ้าหน้าที่ออกเดินทางแล้ว</div>
+            <div class="notif-desc">นายวิชัย ช่างดี กำลังเดินทางไปจุดร้องเรียน CMP-0042</div>
+            <div class="notif-time">5 นาทีที่แล้ว</div>
+          </div>
+        </div>
+        <div class="notif-item unread">
+          <div class="notif-icon" style="background:var(--green-bg)">✅</div>
+          <div class="notif-body">
+            <div class="notif-title">มอบหมายเจ้าหน้าที่แล้ว</div>
+            <div class="notif-desc">เรื่อง CMP-0042 มอบหมายให้กองช่างดำเนินการ</div>
+            <div class="notif-time">10 นาทีที่แล้ว</div>
+          </div>
+        </div>
+        <div class="notif-item">
+          <div class="notif-icon" style="background:var(--primary-bg)">📢</div>
+          <div class="notif-body">
+            <div class="notif-title">รับเรื่องร้องเรียนแล้ว</div>
+            <div class="notif-desc">เรื่อง CMP-0042 ถนนชำรุด — สำนักปลัดรับเรื่องแล้ว</div>
+            <div class="notif-time">15 นาทีที่แล้ว</div>
+          </div>
+        </div>
+        <div class="notif-item">
+          <div class="notif-icon" style="background:var(--green-bg)">🎉</div>
+          <div class="notif-body">
+            <div class="notif-title">แก้ไขเสร็จสิ้น!</div>
+            <div class="notif-desc">เรื่อง CMP-0035 ท่อระบายน้ำอุดตัน — ดำเนินการเสร็จสิ้น</div>
+            <div class="notif-time">เมื่อวาน 14:30</div>
+          </div>
+        </div>
+        <div class="notif-item">
+          <div class="notif-icon" style="background:var(--orange-bg)">📰</div>
+          <div class="notif-body">
+            <div class="notif-title">ข่าวเทศบาล</div>
+            <div class="notif-desc">กำหนดการจ่ายเบี้ยผู้สูงอายุ ประจำเดือน ก.พ. 2569</div>
+            <div class="notif-time">2 วันก่อน</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFILE VIEW -->
+      <div class="view" id="view-profile">
+        <div class="profile-header">
+          <div class="profile-avatar">ส</div>
+          <div class="profile-name">สมชาย มั่นคง</div>
+          <div class="profile-sub">หมู่ 3 ต.พลับพลา อ.เมือง จ.จันทบุรี</div>
+        </div>
+        <div class="profile-stats">
+          <div class="profile-stat">
+            <div class="num">12</div>
+            <div class="label">เรื่องทั้งหมด</div>
+          </div>
+          <div class="profile-stat">
+            <div class="num">9</div>
+            <div class="label">แก้ไขแล้ว</div>
+          </div>
+          <div class="profile-stat">
+            <div class="num">4.7</div>
+            <div class="label">คะแนนเฉลี่ย</div>
+          </div>
+        </div>
+        <div class="profile-menu">
+          <div class="pm-item">
+            <div class="pm-icon" style="background:var(--primary-bg)">📋</div>
+            <div class="pm-label">ประวัติเรื่องร้องเรียน</div>
+            <div class="pm-arrow"><i data-lucide="chevron-right"></i></div>
+          </div>
+          <div class="pm-item">
+            <div class="pm-icon" style="background:var(--green-bg)">⭐</div>
+            <div class="pm-label">ประวัติให้คะแนน</div>
+            <div class="pm-arrow"><i data-lucide="chevron-right"></i></div>
+          </div>
+          <div class="pm-item">
+            <div class="pm-icon" style="background:var(--orange-bg)">🎫</div>
+            <div class="pm-label">ประวัตินัดคิว</div>
+            <div class="pm-arrow"><i data-lucide="chevron-right"></i></div>
+          </div>
+          <div class="pm-item">
+            <div class="pm-icon" style="background:var(--cyan-bg)">💳</div>
+            <div class="pm-label">ประวัติการชำระเงิน</div>
+            <div class="pm-arrow"><i data-lucide="chevron-right"></i></div>
+          </div>
+          <div class="pm-item" onclick="toggleTheme()">
+            <div class="pm-icon" style="background:var(--purple-bg)">🌙</div>
+            <div class="pm-label">โหมดมืด/สว่าง</div>
+            <div class="pm-arrow"><i data-lucide="chevron-right"></i></div>
+          </div>
+          <div class="pm-item">
+            <div class="pm-icon" style="background:var(--red-bg)">🚪</div>
+            <div class="pm-label" style="color:var(--red)">ออกจากระบบ</div>
+            <div class="pm-arrow"><i data-lucide="chevron-right"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== BOTTOM NAV ===== -->
+    <nav class="bottom-nav" id="bottomNav">
+      <button class="nav-item active" data-view="home">
+        <i data-lucide="home"></i>
+        <span>หน้าหลัก</span>
+      </button>
+      <button class="nav-item" data-view="report">
+        <i data-lucide="megaphone"></i>
+        <span>แจ้งปัญหา</span>
+      </button>
+      <button class="nav-item" data-view="track">
+        <i data-lucide="map"></i>
+        <span>ติดตาม</span>
+      </button>
+      <button class="nav-item" data-view="notifications">
+        <i data-lucide="bell"></i>
+        <span>แจ้งเตือน</span>
+      </button>
+      <button class="nav-item" data-view="profile">
+        <i data-lucide="user"></i>
+        <span>โปรไฟล์</span>
+      </button>
+    </nav>
+
+    <!-- SUCCESS OVERLAY -->
+    <div class="success-overlay" id="successOverlay">
+      <div class="success-card">
+        <div class="success-icon">🎉</div>
+        <div class="success-title">ส่งเรื่องสำเร็จ!</div>
+        <div class="success-desc">น้องพลับพลานารายณ์ได้รับเรื่องแล้ว<br>กำลังส่งให้กองที่เกี่ยวข้องดำเนินการ</div>
+        <div class="success-ref" id="successRef">CMP-20260219-0043</div>
+        <div class="success-desc">ติดตามสถานะได้ที่เมนู "ติดตาม"</div>
+        <button class="success-btn" onclick="closeSuccess()">ตกลง</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========================================
+    // API LAYER — auto-detect backend
+    // ========================================
+    let apiAvailable = false;
+    let liffProfile = null; // LIFF user profile
+
+    async function checkAPI() {
+      try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        apiAvailable = data.status === 'ok';
+        console.log(apiAvailable ? '✅ Backend API connected' : '⚠️ Demo mode (no backend)');
+      } catch { apiAvailable = false; console.log('⚠️ Demo mode (no backend)'); }
+    }
+
+    async function apiClassify(text) {
+      if (!apiAvailable) return analyzeComplaint(text);
+      try {
+        const res = await fetch('/api/citizen/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        return {
+          issue: data.summary || text,
+          department: data.departmentName || data.department,
+          severity: data.confidence > 0.8 ? 'สูง' : 'ปานกลาง',
+          summary: data.summary,
+          departmentId: data.departmentId,
+          category: data.category,
+        };
+      } catch (e) {
+        console.error('API classify failed, using mock:', e);
+        return analyzeComplaint(text);
+      }
+    }
+
+    async function apiSubmitComplaint(formData) {
+      if (!apiAvailable) return { success: true, refId: `CMP-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000+Math.random()*9000)}` };
+      try {
+        const res = await fetch('/api/citizen/complaints', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...formData, lineUserId: liffProfile?.userId })
+        });
+        return await res.json();
+      } catch (e) {
+        console.error('API submit failed:', e);
+        return { success: true, refId: 'CMP-DEMO-0000' };
+      }
+    }
+
+    async function apiTrackComplaint(refId) {
+      if (!apiAvailable) return null;
+      try {
+        const res = await fetch(`/api/citizen/complaints/${refId}`);
+        if (!res.ok) return null;
+        return await res.json();
+      } catch { return null; }
+    }
+
+    async function apiGetStats() {
+      if (!apiAvailable) return null;
+      try {
+        const res = await fetch('/api/citizen/stats');
+        return await res.json();
+      } catch { return null; }
+    }
+
+    // ========================================
+    // STATE
+    // ========================================
+    let currentView = 'home';
+    let isDark = false;
+    let trackingMap = null;
+    let officerMarker = null;
+    let routeLine = null;
+    let traveledLine = null;
+    let animationId = null;
+    let trackingPhase = 0;
+    let chatState = 'idle'; // idle | typing | analyzing | form
+    let citizenProfile = null; // ข้อมูลผู้ใช้ที่ลงทะเบียนแล้ว
+    let gpsMap = null; // Leaflet map for GPS picker
+
+    // พลับพลานารายณ์ coordinates
+    const MUNICIPAL_OFFICE = [12.6067, 102.1048];
+    const COMPLAINT_LOCATION = [12.6130, 102.1112];
+
+    // Route waypoints (simulated road)
+    const ROUTE_POINTS = [
+      [12.6067, 102.1048],
+      [12.6070, 102.1052],
+      [12.6074, 102.1056],
+      [12.6078, 102.1060],
+      [12.6082, 102.1065],
+      [12.6086, 102.1069],
+      [12.6090, 102.1073],
+      [12.6094, 102.1077],
+      [12.6098, 102.1082],
+      [12.6102, 102.1086],
+      [12.6106, 102.1090],
+      [12.6110, 102.1094],
+      [12.6114, 102.1098],
+      [12.6118, 102.1102],
+      [12.6122, 102.1106],
+      [12.6126, 102.1110],
+      [12.6130, 102.1112],
+    ];
+
+    // ========================================
+    // NAVIGATION
+    // ========================================
+    function switchView(name) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById(`view-${name}`).classList.add('active');
+      document.querySelector(`.nav-item[data-view="${name}"]`)?.classList.add('active');
+      currentView = name;
+
+      const header = document.getElementById('mainHeader');
+      const nav = document.getElementById('bottomNav');
+
+      if (name === 'report' && chatState === 'idle') {
+        initChat();
+      }
+    }
+
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const view = btn.dataset.view;
+        if (view === 'track') closeTracking();
+        switchView(view);
+      });
+    });
+
+    // ========================================
+    // THEME
+    // ========================================
+    function toggleTheme() {
+      isDark = !isDark;
+      document.documentElement.classList.toggle('dark', isDark);
+      localStorage.setItem('citizen-dark', isDark);
+      // Update map tiles if tracking
+      if (trackingMap) {
+        trackingMap.eachLayer(l => { if (l._url) trackingMap.removeLayer(l); });
+        L.tileLayer(isDark
+          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+          : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+          { maxZoom: 19 }
+        ).addTo(trackingMap);
+      }
+    }
+
+    // ========================================
+    // CLOCK
+    // ========================================
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clockDisplay').textContent =
+        now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ========================================
+    // AI CHAT
+    // ========================================
+    function initChat() {
+      if (chatState !== 'idle') return;
+      chatState = 'greeting';
+      const msgs = document.getElementById('chatMessages');
+      msgs.innerHTML = '';
+      addBotMessage('สวัสดีครับ 🙏 ผมน้องพลับพลานารายณ์ AI ผู้ช่วยรับเรื่องร้องเรียน');
+      setTimeout(() => {
+        addBotMessage('บอกปัญหาที่พบได้เลยครับ เช่น "ถนนพัง", "ไฟดับ", "น้ำท่วม"');
+        addQuickReplies(['ถนนชำรุด', 'ไฟทางดับ', 'น้ำท่วม', 'ขยะ/สิ่งสกปรก']);
+        chatState = 'waiting';
+      }, 800);
+    }
+
+    function addBotMessage(text, extra = '') {
+      const msgs = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.className = 'msg bot';
+      div.innerHTML = `
+        <div class="msg-name">🤖 น้องพลับพลานารายณ์</div>
+        <div class="msg-bubble">${text}</div>
+        ${extra}
+      `;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function addUserMessage(text) {
+      const msgs = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.className = 'msg user';
+      div.innerHTML = `<div class="msg-bubble">${text}</div>`;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function addTypingIndicator() {
+      const msgs = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.className = 'msg bot';
+      div.id = 'typingIndicator';
+      div.innerHTML = `
+        <div class="msg-name">🤖 น้องพลับพลานารายณ์</div>
+        <div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>
+      `;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+      document.getElementById('typingIndicator')?.remove();
+    }
+
+    function addQuickReplies(options) {
+      const msgs = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.className = 'msg bot';
+      div.id = 'quickReplies';
+      div.innerHTML = `<div class="quick-replies">${options.map(o => `<button class="qr-btn" onclick="handleQuickReply('${o}')">${o}</button>`).join('')}</div>`;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function handleQuickReply(text) {
+      document.getElementById('quickReplies')?.remove();
+      handleUserInput(text);
+    }
+
+    function handleChatSend() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      handleUserInput(text);
+    }
+
+    // Enter key support
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey && currentView === 'report' && document.activeElement?.id === 'chatInput') {
+        e.preventDefault();
+        handleChatSend();
+      }
+    });
+
+    async function handleUserInput(text) {
+      document.getElementById('quickReplies')?.remove();
+      addUserMessage(text);
+      chatState = 'analyzing';
+
+      addTypingIndicator();
+
+      // AI analysis (real API or mock fallback)
+      const analysis = await apiClassify(text);
+      removeTypingIndicator();
+
+      const resultHTML = `
+        <div class="ai-result">
+          <div class="ai-result-header">🧠 AI วิเคราะห์แล้ว</div>
+          <div class="ai-result-body">
+            <div class="ai-field"><span class="label">ปัญหา</span><span class="value">${analysis.issue}</span></div>
+            <div class="ai-field"><span class="label">หมวด</span><span class="value" style="color:var(--primary)">${analysis.department}</span></div>
+            <div class="ai-field"><span class="label">ระดับ</span><span class="value" style="color:var(--orange)">${analysis.severity}</span></div>
+            <div class="ai-field"><span class="label">สรุป</span><span class="value">${analysis.summary}</span></div>
+          </div>
+        </div>
+      `;
+      addBotMessage('วิเคราะห์เสร็จแล้วครับ! ข้อมูลถูกต้องมั้ยครับ?', resultHTML);
+
+      setTimeout(() => {
+        addQuickReplies(['✅ ถูกต้อง ไปต่อเลย', '✏️ แก้ไขข้อมูล']);
+        chatState = 'confirm';
+
+        document.querySelectorAll('.qr-btn').forEach(btn => {
+          btn.onclick = () => {
+            document.getElementById('quickReplies')?.remove();
+            if (btn.textContent.includes('ถูกต้อง')) {
+              addUserMessage('ถูกต้อง ไปต่อเลย');
+              showComplaintForm(analysis);
+            } else {
+              addUserMessage('ขอแก้ไข');
+              addBotMessage('ได้เลยครับ พิมพ์ปัญหาใหม่ได้เลย');
+              chatState = 'waiting';
+            }
+          };
+        });
+      }, 500);
+    }
+
+    function analyzeComplaint(text) {
+      // Simple keyword-based mock analysis
+      const lower = text.toLowerCase();
+      let dept = 'กองช่าง';
+      let cat = 'โครงสร้างพื้นฐาน';
+      let severity = 'ปานกลาง';
+      let issue = text;
+      let summary = text;
+
+      if (lower.includes('ถนน') || lower.includes('หลุม') || lower.includes('พัง')) {
+        dept = 'กองช่าง';
+        issue = 'ถนนชำรุด/เป็นหลุม';
+        severity = 'สูง';
+        summary = 'ถนนชำรุดเป็นหลุม ประชาชนสัญจรลำบาก';
+      } else if (lower.includes('ไฟ') || lower.includes('ดับ') || lower.includes('ไฟฟ้า')) {
+        dept = 'กองช่าง';
+        issue = 'ไฟทางสาธารณะดับ';
+        severity = 'สูง';
+        summary = 'ไฟทางสาธารณะดับ เสี่ยงอันตรายในเวลากลางคืน';
+      } else if (lower.includes('น้ำ') || lower.includes('ท่วม') || lower.includes('ท่อ')) {
+        dept = 'กองช่าง';
+        issue = 'น้ำท่วม/ท่อระบายน้ำ';
+        severity = 'เร่งด่วน';
+        summary = 'น้ำท่วมขังหรือท่อระบายน้ำอุดตัน';
+      } else if (lower.includes('ขยะ') || lower.includes('สกปรก') || lower.includes('กลิ่น')) {
+        dept = 'กองสาธารณสุข';
+        issue = 'ขยะ/ความสะอาด';
+        severity = 'ปานกลาง';
+        summary = 'ปัญหาขยะหรือความสะอาดในพื้นที่';
+      } else if (lower.includes('เสียง') || lower.includes('รบกวน')) {
+        dept = 'สำนักปลัด';
+        issue = 'เสียงดังรบกวน';
+        severity = 'ปานกลาง';
+        summary = 'เสียงดังรบกวนในพื้นที่ชุมชน';
+      }
+
+      return { issue, department: dept, severity, summary, category: cat };
+    }
+
+    function showComplaintForm(analysis) {
+      addBotMessage('กรอกข้อมูลเพิ่มเติมด้านล่างแล้วกดส่งได้เลยครับ 👇');
+
+      setTimeout(() => {
+        document.getElementById('chatContainer').classList.add('hidden');
+        document.getElementById('complaintForm').classList.remove('hidden');
+        document.getElementById('chatInputArea').classList.add('hidden');
+
+        document.getElementById('formIssue').value = analysis.issue;
+        document.getElementById('formLocation').value = '';
+        document.getElementById('formCategory').value = analysis.department;
+        document.getElementById('formSeverity').value = analysis.severity;
+
+        // Init GPS map
+        setTimeout(() => {
+          initGPSMap();
+          lucide.createIcons();
+        }, 100);
+      }, 600);
+    }
+
+    function resetChat() {
+      document.getElementById('chatContainer').classList.remove('hidden');
+      document.getElementById('complaintForm').classList.add('hidden');
+      document.getElementById('chatInputArea').classList.remove('hidden');
+      chatState = 'waiting';
+    }
+
+    // ========================================
+    // GPS PICKER
+    // ========================================
+    function initGPSMap() {
+      if (gpsMap) { gpsMap.remove(); gpsMap = null; }
+
+      const center = MUNICIPAL_OFFICE;
+      gpsMap = L.map('gpsMap', {
+        center: center,
+        zoom: 15,
+        zoomControl: false,
+        attributionControl: false,
+      });
+
+      L.tileLayer(isDark
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        { maxZoom: 19 }
+      ).addTo(gpsMap);
+
+      // Update coordinates when map moves (crosshair stays center)
+      gpsMap.on('moveend', () => {
+        const c = gpsMap.getCenter();
+        updateGPSDisplay(c.lat, c.lng);
+      });
+
+      // Initial display
+      updateGPSDisplay(center[0], center[1]);
+    }
+
+    function updateGPSDisplay(lat, lng) {
+      document.getElementById('formLat').value = lat.toFixed(6);
+      document.getElementById('formLng').value = lng.toFixed(6);
+      document.getElementById('gpsText').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    }
+
+    function getMyGPS() {
+      if (!navigator.geolocation) {
+        alert('เบราว์เซอร์ไม่รองรับ GPS');
+        return;
+      }
+
+      document.getElementById('gpsText').textContent = '🔄 กำลังหาตำแหน่ง...';
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          if (gpsMap) {
+            gpsMap.setView([latitude, longitude], 17);
+          }
+          updateGPSDisplay(latitude, longitude);
+          // Auto-fill location text
+          document.getElementById('formLocation').value =
+            `ตำแหน่ง GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        },
+        (err) => {
+          console.error('GPS error:', err);
+          document.getElementById('gpsText').textContent = '❌ ไม่สามารถจับตำแหน่งได้';
+          if (err.code === 1) alert('กรุณาอนุญาตการเข้าถึงตำแหน่ง (Location Permission)');
+          else alert('ไม่สามารถจับตำแหน่ง GPS ได้ — ลองลากแผนที่เพื่อปักหมุดเอง');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    // ========================================
+    // CONSENT & REGISTRATION
+    // ========================================
+    function acceptConsent() {
+      localStorage.setItem('citizen-pdpa-consent', new Date().toISOString());
+      document.getElementById('consentScreen').classList.add('hidden');
+
+      // Check if already registered
+      if (citizenProfile) {
+        showMainApp();
+      } else {
+        showRegistration();
+      }
+    }
+
+    function declineConsent() {
+      alert('ท่านจำเป็นต้องยินยอมเพื่อใช้บริการร้องเรียนออนไลน์\n\nหากไม่ประสงค์ สามารถแจ้งเรื่องได้ที่สำนักงานเทศบาลโดยตรง');
+    }
+
+    // ===== จันทบุรี Address Data =====
+    const chanthaburiData = {
+      'เมืองจันทบุรี': { tambons: ['ตลาด','วัดใหม่','คลองนารายณ์','เกาะขวาง','คมบาง','ท่าช้าง','จันทนิมิต','บางกะจะ','แสลง','หนองบัว','พลับพลา'], zip: '22000' },
+      'ขลุง': { tambons: ['ขลุง','บ่อ','เกวียนหัก','ตะปอน','บ่อเวฬุ','ตรอกนอง','มาบไพ','วันยาว','ซึ้ง','บางชัน','วังสรรพรส','หนองตะพาน'], zip: '22110' },
+      'ท่าใหม่': { tambons: ['ท่าใหม่','ยายร้า','สีพยา','บ่อพุ','พลอยแหวน','เขาบายศรี','สองพี่น้อง','ทุ่งเบญจา','รำพัน','โขมง','ตะกาดเง้า','คลองขุด','เขาแก้ว','ทับไทร'], zip: '22120' },
+      'โป่งน้ำร้อน': { tambons: ['โป่งน้ำร้อน','ทุ่งเบญจา','เทพนิมิต','คลองใหญ่','หนองตาคง'], zip: '22140' },
+      'มะขาม': { tambons: ['มะขาม','ท่าหลวง','ปัถวี','วังแซ้ม','ฉมัน','อ่างคีรี'], zip: '22150' },
+      'แหลมสิงห์': { tambons: ['ปากน้ำแหลมสิงห์','เกาะเปริด','หนองชิ่ม','พลิ้ว','คลองน้ำเค็ม','บางสระเก้า','บางกะไชย'], zip: '22130' },
+      'สอยดาว': { tambons: ['ปะตง','ทุ่งขนาน','ทรายขาว','ทับช้าง','ตะเคียนทอง','สะตอน'], zip: '22180' },
+      'แก่งหางแมว': { tambons: ['แก่งหางแมว','ขุนซ่อง','สามพี่น้อง','พวา','เขาวงกต'], zip: '22160' },
+      'นายายอาม': { tambons: ['นายายอาม','สนามไชย','ช้างข้าม','วังโตนด','กระแจะ','สองพี่น้อง','ท่าลำภู'], zip: '22160' },
+      'เขาคิชฌกูฏ': { tambons: ['ชากไทย','พลวง','ตะเคียนทอง','คลองพลู','จันทเขลม'], zip: '22210' },
+    };
+
+    let regCurrentStep = 1;
+
+    function selectGender(el, gender) {
+      document.querySelectorAll('.gender-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('regGender').value = gender;
+    }
+
+    function onProvinceChange() {
+      const province = document.getElementById('regProvince').value;
+      const amphoeSelect = document.getElementById('regAmphoe');
+      const tambonSelect = document.getElementById('regTambon');
+      amphoeSelect.innerHTML = '<option value="">โปรดเลือก</option>';
+      tambonSelect.innerHTML = '<option value="">โปรดเลือก</option>';
+      document.getElementById('regZipcode').value = '';
+      if (province === 'จันทบุรี') {
+        Object.keys(chanthaburiData).forEach(a => {
+          amphoeSelect.innerHTML += `<option value="${a}">${a}</option>`;
+        });
+      }
+    }
+
+    function onAmphoeChange() {
+      const amphoe = document.getElementById('regAmphoe').value;
+      const tambonSelect = document.getElementById('regTambon');
+      tambonSelect.innerHTML = '<option value="">โปรดเลือก</option>';
+      const data = chanthaburiData[amphoe];
+      if (data) {
+        data.tambons.forEach(t => {
+          tambonSelect.innerHTML += `<option value="${t}">${t}</option>`;
+        });
+        document.getElementById('regZipcode').value = data.zip;
+      } else {
+        document.getElementById('regZipcode').value = '';
+      }
+    }
+
+    function regNextStep() {
+      if (regCurrentStep === 1) {
+        // Validate step 1
+        const title = document.getElementById('regTitle').value;
+        const firstName = document.getElementById('regFirstName').value.trim();
+        const lastName = document.getElementById('regLastName').value.trim();
+        const gender = document.getElementById('regGender').value;
+        const phone = document.getElementById('regPhone').value.trim();
+        if (!title) { alert('กรุณาเลือกคำนำหน้า'); return; }
+        if (!firstName) { alert('กรุณากรอกชื่อ'); return; }
+        if (!lastName) { alert('กรุณากรอกนามสกุล'); return; }
+        if (!gender) { alert('กรุณาเลือกเพศ'); return; }
+        if (!phone || phone.length < 9) { alert('กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง'); return; }
+
+        regCurrentStep = 2;
+        document.getElementById('regStep1').classList.remove('active');
+        document.getElementById('regStep2').classList.add('active');
+        document.getElementById('regProgressFill').style.width = '100%';
+        document.getElementById('regStepLabel').textContent = 'ขั้นตอน 2/2 — ข้อมูลที่พักอาศัย';
+        document.getElementById('regFooter').innerHTML = `
+          <button class="reg-btn secondary" onclick="regPrevStep()">ย้อนกลับ</button>
+          <button class="reg-btn primary" id="regSubmitBtn" onclick="submitRegistration()">ลงทะเบียน</button>
+        `;
+        // Auto-populate อำเภอ for จันทบุรี
+        onProvinceChange();
+        // Scroll to top
+        document.querySelector('#registerScreen .consent-scroll').scrollTop = 0;
+      }
+    }
+
+    function regPrevStep() {
+      regCurrentStep = 1;
+      document.getElementById('regStep2').classList.remove('active');
+      document.getElementById('regStep1').classList.add('active');
+      document.getElementById('regProgressFill').style.width = '50%';
+      document.getElementById('regStepLabel').textContent = 'ขั้นตอน 1/2 — ข้อมูลส่วนตัว';
+      document.getElementById('regFooter').innerHTML = `
+        <button class="reg-btn primary" onclick="regNextStep()">ถัดไป</button>
+      `;
+      document.querySelector('#registerScreen .consent-scroll').scrollTop = 0;
+    }
+
+    function showRegistration() {
+      const screen = document.getElementById('registerScreen');
+      screen.classList.remove('hidden');
+      regCurrentStep = 1;
+      document.getElementById('regStep1').classList.add('active');
+      document.getElementById('regStep2').classList.remove('active');
+      document.getElementById('regProgressFill').style.width = '50%';
+      document.getElementById('regStepLabel').textContent = 'ขั้นตอน 1/2 — ข้อมูลส่วนตัว';
+      document.getElementById('regFooter').innerHTML = `
+        <button class="reg-btn primary" onclick="regNextStep()">ถัดไป</button>
+      `;
+
+      // Pre-fill from LIFF profile
+      if (liffProfile) {
+        const name = (liffProfile.displayName || '').trim();
+        // Guess: if name has space, split into first/last
+        const parts = name.split(/\s+/);
+        if (parts.length >= 2) {
+          document.getElementById('regFirstName').value = parts[0];
+          document.getElementById('regLastName').value = parts.slice(1).join(' ');
+        } else if (parts.length === 1) {
+          document.getElementById('regFirstName').value = parts[0];
+        }
+      }
+    }
+
+    async function submitRegistration() {
+      const title = document.getElementById('regTitle').value;
+      const firstName = document.getElementById('regFirstName').value.trim();
+      const lastName = document.getElementById('regLastName').value.trim();
+      const gender = document.getElementById('regGender').value;
+      const phone = document.getElementById('regPhone').value.trim();
+      const houseNo = document.getElementById('regHouseNo').value.trim();
+      const moo = document.getElementById('regMoo').value.trim();
+      const soi = document.getElementById('regSoi').value.trim();
+      const road = document.getElementById('regRoad').value.trim();
+      const province = document.getElementById('regProvince').value;
+      const amphoe = document.getElementById('regAmphoe').value;
+      const tambon = document.getElementById('regTambon').value;
+      const zipcode = document.getElementById('regZipcode').value.trim();
+
+      // Validate step 2
+      if (!houseNo) { alert('กรุณากรอกบ้านเลขที่'); return; }
+      if (!province) { alert('กรุณาเลือกจังหวัด'); return; }
+      if (!amphoe) { alert('กรุณาเลือกอำเภอ'); return; }
+      if (!tambon) { alert('กรุณาเลือกตำบล'); return; }
+      if (!zipcode || zipcode.length < 5) { alert('กรุณากรอกรหัสไปรษณีย์'); return; }
+
+      const displayName = `${title}${firstName} ${lastName}`;
+      const addressParts = [houseNo && `${houseNo}`, moo && `หมู่ ${moo}`, soi && `ซอย ${soi}`, road && `ถนน ${road}`, tambon && `ต.${tambon}`, amphoe && `อ.${amphoe}`, province && `จ.${province}`, zipcode].filter(Boolean);
+      const address = JSON.stringify({ houseNo, moo, soi, road, province, amphoe, tambon, zipcode, gender, full: addressParts.join(' ') });
+
+      const btn = document.getElementById('regSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ กำลังลงทะเบียน...';
+
+      try {
+        const res = await fetch('/api/citizen/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lineUserId: liffProfile?.userId,
+            displayName,
+            phone,
+            address,
+            pictureUrl: liffProfile?.pictureUrl,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          citizenProfile = data.user;
+          localStorage.setItem('citizen-profile', JSON.stringify(citizenProfile));
+          document.getElementById('registerScreen').classList.add('hidden');
+          showMainApp();
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (e) {
+        alert('ลงทะเบียนไม่สำเร็จ: ' + e.message);
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'ลงทะเบียน';
+    }
+
+    function showMainApp() {
+      document.getElementById('app').style.display = '';
+
+      // Update profile display
+      if (citizenProfile) {
+        document.querySelector('.profile-name').textContent = citizenProfile.displayName || 'ประชาชน';
+        document.querySelector('.profile-avatar').textContent = (citizenProfile.displayName || '?').charAt(0);
+        // Parse address — could be JSON or plain string
+        let addrDisplay = 'เทศบาลตำบลพลับพลานารายณ์';
+        if (citizenProfile.address) {
+          try {
+            const addr = JSON.parse(citizenProfile.address);
+            addrDisplay = addr.full || citizenProfile.address;
+          } catch { addrDisplay = citizenProfile.address; }
+        }
+        document.querySelector('.profile-sub').textContent = addrDisplay;
+      }
+    }
+
+    async function submitComplaint() {
+      const btn = document.querySelector('.submit-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ กำลังส่ง...';
+
+      const lat = parseFloat(document.getElementById('formLat').value) || undefined;
+      const lng = parseFloat(document.getElementById('formLng').value) || undefined;
+
+      const result = await apiSubmitComplaint({
+        issue: document.getElementById('formIssue').value,
+        location: document.getElementById('formLocation').value,
+        latitude: lat,
+        longitude: lng,
+        contactName: citizenProfile?.displayName || 'ไม่ระบุ',
+        contactPhone: citizenProfile?.phone || '',
+        category: document.getElementById('formCategory').value,
+        summary: document.getElementById('formIssue').value,
+      });
+
+      btn.disabled = false;
+      btn.textContent = '✅ ส่งเรื่องร้องเรียน';
+
+      if (result.refId) {
+        document.getElementById('successRef').textContent = result.refId;
+      }
+      document.getElementById('successOverlay').classList.add('show');
+    }
+
+    function closeSuccess() {
+      document.getElementById('successOverlay').classList.remove('show');
+      // Reset form
+      document.getElementById('complaintForm').classList.add('hidden');
+      document.getElementById('chatContainer').classList.remove('hidden');
+      document.getElementById('chatInputArea').classList.remove('hidden');
+      chatState = 'idle';
+      switchView('home');
+    }
+
+    // ========================================
+    // TRACKING (Grab-style)
+    // ========================================
+    function openTracking(refId) {
+      const list = document.getElementById('trackList');
+      const active = document.getElementById('trackingActive');
+      list.classList.add('hidden');
+      active.classList.remove('hidden');
+
+      // Hide header and nav for immersive experience
+      document.getElementById('mainHeader').style.display = 'none';
+      document.getElementById('bottomNav').classList.add('hidden');
+
+      // Ensure view is track
+      if (currentView !== 'track') switchView('track');
+
+      setTimeout(() => initTrackingMap(), 100);
+    }
+
+    function closeTracking() {
+      const list = document.getElementById('trackList');
+      const active = document.getElementById('trackingActive');
+      list.classList.remove('hidden');
+      active.classList.add('hidden');
+
+      document.getElementById('mainHeader').style.display = '';
+      document.getElementById('bottomNav').classList.remove('hidden');
+
+      // Stop animation
+      if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+      if (trackingMap) { trackingMap.remove(); trackingMap = null; }
+      trackingPhase = 0;
+
+      // Reset timeline
+      resetTimeline();
+    }
+
+    function resetTimeline() {
+      document.getElementById('trackingStatus').className = 'tracking-status';
+      document.getElementById('statusText').textContent = 'เจ้าหน้าที่กำลังเดินทาง';
+      document.getElementById('tlTravel').className = 'timeline-item active';
+      document.getElementById('tlTravelTitle').textContent = 'กำลังเดินทาง';
+      ['tlArrive', 'tlWork', 'tlDone'].forEach(id => {
+        document.getElementById(id).className = 'timeline-item';
+        document.getElementById(id + 'Dot').className = 'tl-dot pending';
+        document.getElementById(id + 'Title').className = 'tl-title pending';
+        document.getElementById(id + 'Time').textContent = '';
+      });
+    }
+
+    function initTrackingMap() {
+      if (trackingMap) { trackingMap.remove(); trackingMap = null; }
+
+      const midLat = (MUNICIPAL_OFFICE[0] + COMPLAINT_LOCATION[0]) / 2;
+      const midLng = (MUNICIPAL_OFFICE[1] + COMPLAINT_LOCATION[1]) / 2;
+
+      trackingMap = L.map('tracking-map', {
+        center: [midLat, midLng],
+        zoom: 15,
+        zoomControl: false,
+        attributionControl: false,
+      });
+
+      L.tileLayer(isDark
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        { maxZoom: 19 }
+      ).addTo(trackingMap);
+
+      // Municipal office marker
+      const officeIcon = L.divIcon({
+        className: '',
+        html: `<div class="office-marker"><div class="pin">🏛️</div></div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      });
+      L.marker(MUNICIPAL_OFFICE, { icon: officeIcon }).addTo(trackingMap)
+        .bindTooltip('เทศบาลตำบลพลับพลานารายณ์', { direction: 'top', offset: [0, -10] });
+
+      // Destination marker
+      const destIcon = L.divIcon({
+        className: '',
+        html: `<div class="dest-marker"><div class="pin"><span>!</span></div></div>`,
+        iconSize: [36, 36],
+        iconAnchor: [16, 32],
+      });
+      L.marker(COMPLAINT_LOCATION, { icon: destIcon }).addTo(trackingMap)
+        .bindTooltip('จุดร้องเรียน: ถนนชำรุด', { direction: 'top', offset: [0, -10] });
+
+      // Route line (remaining = dashed)
+      routeLine = L.polyline(ROUTE_POINTS, {
+        color: '#2563EB',
+        weight: 4,
+        dashArray: '8, 12',
+        opacity: 0.4,
+      }).addTo(trackingMap);
+
+      // Traveled line (solid)
+      traveledLine = L.polyline([], {
+        color: '#00B14F',
+        weight: 5,
+        opacity: 0.9,
+      }).addTo(trackingMap);
+
+      // Officer marker
+      const officerIcon = L.divIcon({
+        className: '',
+        html: `<div class="officer-marker"><div class="pulse-ring"></div><div class="dot">🛵</div></div>`,
+        iconSize: [48, 48],
+        iconAnchor: [24, 24],
+      });
+      officerMarker = L.marker(ROUTE_POINTS[0], { icon: officerIcon, zIndexOffset: 1000 }).addTo(trackingMap);
+
+      // Fit bounds
+      trackingMap.fitBounds(L.latLngBounds(ROUTE_POINTS), { padding: [40, 40] });
+
+      // Start animation after a short delay
+      setTimeout(() => startOfficerAnimation(), 1500);
+    }
+
+    function startOfficerAnimation() {
+      let segmentIndex = 0;
+      const totalSegments = ROUTE_POINTS.length - 1;
+      const segmentDuration = 1800; // ms per segment
+
+      function animateSegment() {
+        if (segmentIndex >= totalSegments) {
+          // Arrived!
+          onOfficerArrived();
+          return;
+        }
+
+        const from = ROUTE_POINTS[segmentIndex];
+        const to = ROUTE_POINTS[segmentIndex + 1];
+        let startTime = null;
+
+        function step(timestamp) {
+          if (!startTime) startTime = timestamp;
+          let progress = Math.min((timestamp - startTime) / segmentDuration, 1);
+
+          // Ease in-out quad
+          const eased = progress < 0.5
+            ? 2 * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+          const lat = from[0] + (to[0] - from[0]) * eased;
+          const lng = from[1] + (to[1] - from[1]) * eased;
+
+          officerMarker.setLatLng([lat, lng]);
+
+          // Update traveled line
+          const traveled = ROUTE_POINTS.slice(0, segmentIndex + 1).concat([[lat, lng]]);
+          traveledLine.setLatLngs(traveled);
+
+          // Pan map to follow officer
+          if (segmentIndex % 3 === 0 || progress > 0.9) {
+            trackingMap.panTo([lat, lng], { animate: true, duration: 0.5 });
+          }
+
+          // Update ETA
+          const remaining = totalSegments - segmentIndex - progress;
+          const etaSec = Math.ceil(remaining * 30); // ~30 sec per segment in real life
+          updateETADisplay(etaSec);
+
+          // Check if near destination
+          if (remaining <= 3 && trackingPhase < 1) {
+            trackingPhase = 1;
+            updateStatus('near');
+          }
+
+          if (progress < 1) {
+            animationId = requestAnimationFrame(step);
+          } else {
+            segmentIndex++;
+            // Small pause between segments
+            setTimeout(animateSegment, 200);
+          }
+        }
+
+        animationId = requestAnimationFrame(step);
+      }
+
+      animateSegment();
+    }
+
+    function updateETADisplay(seconds) {
+      const mins = Math.ceil(seconds / 60);
+      document.getElementById('etaText').textContent =
+        mins > 0 ? `${mins} นาที` : 'ถึงแล้ว!';
+    }
+
+    function updateStatus(phase) {
+      const statusEl = document.getElementById('trackingStatus');
+      const statusText = document.getElementById('statusText');
+
+      if (phase === 'near') {
+        statusText.textContent = '🏁 ใกล้ถึงแล้ว!';
+      }
+    }
+
+    function onOfficerArrived() {
+      // Phase: Arrived
+      const statusEl = document.getElementById('trackingStatus');
+      const statusText = document.getElementById('statusText');
+      statusEl.className = 'tracking-status arrived';
+      statusText.textContent = '📍 เจ้าหน้าที่ถึงจุดหมายแล้ว';
+      document.getElementById('etaText').textContent = 'ถึงแล้ว!';
+
+      // Update timeline
+      const tlTravel = document.getElementById('tlTravel');
+      tlTravel.className = 'timeline-item done';
+      tlTravel.querySelector('.tl-dot').className = 'tl-dot done';
+      tlTravel.querySelector('.tl-dot').textContent = '✓';
+      document.getElementById('tlTravelTitle').textContent = 'เดินทางถึงแล้ว';
+
+      const tlArrive = document.getElementById('tlArrive');
+      tlArrive.className = 'timeline-item active';
+      document.getElementById('tlArriveDot').className = 'tl-dot active';
+      document.getElementById('tlArriveDot').textContent = '✓';
+      document.getElementById('tlArriveTitle').className = 'tl-title';
+      document.getElementById('tlArriveTitle').textContent = 'ถึงจุดหมาย';
+      document.getElementById('tlArriveTime').textContent = new Date().toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) + ' — เจ้าหน้าที่ถึงแล้ว';
+
+      // After 4 seconds: working
+      setTimeout(() => {
+        statusEl.className = 'tracking-status working';
+        statusText.textContent = '🔧 กำลังดำเนินการแก้ไข...';
+
+        tlArrive.className = 'timeline-item done';
+        const tlWork = document.getElementById('tlWork');
+        tlWork.className = 'timeline-item active';
+        document.getElementById('tlWorkDot').className = 'tl-dot active';
+        document.getElementById('tlWorkDot').textContent = '🔧';
+        document.getElementById('tlWorkTitle').className = 'tl-title';
+        document.getElementById('tlWorkTitle').textContent = 'กำลังดำเนินการ';
+        document.getElementById('tlWorkTime').textContent = 'กำลังซ่อมแซมถนน...';
+      }, 4000);
+
+      // After 10 seconds: done
+      setTimeout(() => {
+        statusEl.className = 'tracking-status done';
+        statusText.textContent = '✅ ดำเนินการเสร็จสิ้น!';
+
+        const tlWork = document.getElementById('tlWork');
+        tlWork.className = 'timeline-item done';
+        document.getElementById('tlWorkDot').className = 'tl-dot done';
+        document.getElementById('tlWorkDot').textContent = '✓';
+        document.getElementById('tlWorkTitle').textContent = 'ดำเนินการเสร็จ';
+        document.getElementById('tlWorkTime').textContent = new Date().toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) + ' — ซ่อมแซมเสร็จสิ้น';
+
+        const tlDone = document.getElementById('tlDone');
+        tlDone.className = 'timeline-item active';
+        document.getElementById('tlDoneDot').className = 'tl-dot done';
+        document.getElementById('tlDoneDot').textContent = '⭐';
+        document.getElementById('tlDoneTitle').className = 'tl-title';
+        document.getElementById('tlDoneTitle').textContent = 'เสร็จสิ้น — กรุณาให้คะแนน';
+        document.getElementById('tlDoneTime').textContent = 'กดให้คะแนนความพอใจ';
+      }, 10000);
+    }
+
+    function searchComplaint() {
+      const val = document.getElementById('trackSearchInput').value.trim();
+      if (val.includes('0042') || val.includes('42')) {
+        openTracking('CMP-20260219-0042');
+      } else {
+        alert('ไม่พบเรื่องร้องเรียน — ลองพิมพ์ "0042"');
+      }
+    }
+
+    // ========================================
+    // INIT
+    // ========================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      lucide.createIcons();
+
+      // Dark mode
+      if (localStorage.getItem('citizen-dark') === 'true') {
+        isDark = true;
+        document.documentElement.classList.add('dark');
+      }
+
+      // Hide main app initially
+      document.getElementById('app').style.display = 'none';
+
+      await checkAPI();
+
+      // Load real stats if API available
+      const stats = await apiGetStats();
+      if (stats) {
+        document.getElementById('statTotal').textContent = stats.total || '0';
+        document.querySelectorAll('.stat-chip')[1].querySelector('.num').textContent = stats.inProgress || '0';
+        document.querySelectorAll('.stat-chip')[2].querySelector('.num').textContent = stats.completed || '0';
+        if (stats.avgSatisfaction) {
+          document.querySelectorAll('.stat-chip')[3].querySelector('.num').textContent = stats.avgSatisfaction + '⭐';
+        }
+      }
+
+      // LIFF SDK (if running inside LINE)
+      if (typeof liff !== 'undefined') {
+        try {
+          const cfgRes = await fetch('/api/config').catch(() => null);
+          const cfg = cfgRes ? await cfgRes.json() : {};
+          const liffId = cfg.liffId || '0000000000-xxxxxxxx';
+
+          await liff.init({ liffId });
+          if (liff.isLoggedIn()) {
+            liffProfile = await liff.getProfile();
+          } else if (liff.isInClient()) {
+            liff.login();
+            return;
+          }
+        } catch (e) { console.log('LIFF not available:', e); }
+      }
+
+      // Try load profile from server (if LIFF) or localStorage
+      if (liffProfile?.userId && apiAvailable) {
+        try {
+          const res = await fetch(`/api/citizen/me?lineUserId=${liffProfile.userId}`);
+          if (res.ok) {
+            citizenProfile = await res.json();
+            localStorage.setItem('citizen-profile', JSON.stringify(citizenProfile));
+          }
+        } catch {}
+      }
+      if (!citizenProfile) {
+        try { citizenProfile = JSON.parse(localStorage.getItem('citizen-profile')); } catch {}
+      }
+
+      // Flow: consent → register → app
+      const hasConsent = localStorage.getItem('citizen-pdpa-consent');
+
+      if (!hasConsent) {
+        // Show PDPA consent screen
+        document.getElementById('consentScreen').classList.remove('hidden');
+      } else if (!citizenProfile) {
+        // Has consent but not registered
+        showRegistration();
+      } else {
+        // All good — show main app
+        showMainApp();
+      }
+    });
+  </script>
+</body>
+</html>

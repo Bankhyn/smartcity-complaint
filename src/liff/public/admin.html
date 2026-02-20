@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เมืองดี — ศูนย์ควบคุมเมืองอัจฉริยะ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #06B6D4;
+      --primary-light: #22D3EE;
+      --primary-dark: #0891B2;
+      --accent: #10B981;
+      --accent-light: #34D399;
+      --purple: #8B5CF6;
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --orange: #F97316;
+
+      --bg: #070B14;
+      --bg-2: #0B1120;
+      --surface: #111827;
+      --surface-2: #1F2937;
+      --surface-3: #374151;
+      --text: #E5E7EB;
+      --text-muted: #6B7280;
+      --text-dim: #4B5563;
+      --border: rgba(255,255,255,0.06);
+      --border-2: rgba(255,255,255,0.1);
+      --glow-cyan: rgba(6,182,212,0.15);
+      --glow-green: rgba(16,185,129,0.15);
+
+      --font: 'Plus Jakarta Sans', 'Noto Sans Thai', sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+      --nav-w: 64px;
+    }
+
+    html.light {
+      --bg: #F0F4F8;
+      --bg-2: #E2E8F0;
+      --surface: #FFFFFF;
+      --surface-2: #F1F5F9;
+      --surface-3: #E2E8F0;
+      --text: #1E293B;
+      --text-muted: #64748B;
+      --text-dim: #94A3B8;
+      --border: rgba(0,0,0,0.06);
+      --border-2: rgba(0,0,0,0.1);
+      --glow-cyan: rgba(6,182,212,0.08);
+      --glow-green: rgba(16,185,129,0.08);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      display: flex;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* === SLIM NAV === */
+    .nav {
+      width: var(--nav-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.75rem 0;
+      gap: 0.25rem;
+      z-index: 50;
+      flex-shrink: 0;
+    }
+    .nav-logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    .nav-logo::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      opacity: 0.2;
+      z-index: -1;
+    }
+    .nav-logo svg { width: 20px; height: 20px; color: white; }
+    .nav-item {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-dim);
+      transition: all 200ms var(--ease);
+      position: relative;
+    }
+    .nav-item:hover { color: var(--text); background: var(--surface-2); }
+    .nav-item.active {
+      color: var(--primary);
+      background: var(--glow-cyan);
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: -0.55rem;
+      width: 3px;
+      height: 20px;
+      background: var(--primary);
+      border-radius: 0 3px 3px 0;
+    }
+    .nav-item svg { width: 20px; height: 20px; }
+    .nav-badge {
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 8px; height: 8px;
+      background: var(--danger);
+      border-radius: 50%;
+      border: 2px solid var(--surface);
+    }
+    .nav-spacer { flex: 1; }
+    .nav-divider { width: 24px; height: 1px; background: var(--border); margin: 0.5rem 0; }
+
+    /* === MAIN AREA === */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* === TOP BAR === */
+    .topbar {
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 1.25rem;
+      gap: 1rem;
+      flex-shrink: 0;
+    }
+    .topbar-city {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .topbar-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: -0.01em;
+    }
+    .topbar-type {
+      font-size: 0.6rem;
+      color: var(--primary);
+      font-family: var(--mono);
+      padding: 0.1rem 0.4rem;
+      background: var(--glow-cyan);
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .topbar-sep { width: 1px; height: 20px; background: var(--border); }
+    .topbar-weather {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .weather-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .weather-val { font-weight: 600; color: var(--text); font-family: var(--mono); font-size: 0.7rem; }
+    .aqi-good { color: var(--accent); }
+    .aqi-mod { color: var(--warning); }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+    .topbar-time {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .topbar-btn {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 200ms;
+    }
+    .topbar-btn:hover { border-color: var(--border-2); color: var(--text); }
+    .topbar-btn svg { width: 16px; height: 16px; }
+    .live-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.5rem;
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.15);
+      border-radius: 6px;
+      font-size: 0.6rem;
+      font-family: var(--mono);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .live-dot {
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    /* === CONTENT LAYOUT === */
+    .content-area {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      grid-template-rows: auto 1fr;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* === MAP SECTION === */
+    .map-section {
+      grid-column: 1;
+      grid-row: 1 / -1;
+      position: relative;
+      background: var(--bg-2);
+      overflow: hidden;
+    }
+    .map-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 40% 50%, rgba(6,182,212,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 30%, rgba(16,185,129,0.04) 0%, transparent 50%);
+    }
+    /* Grid overlay */
+    .map-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    html.light .map-grid {
+      background-image:
+        linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+    }
+    /* Roads */
+    .map-road {
+      position: absolute;
+      background: rgba(255,255,255,0.04);
+    }
+    html.light .map-road { background: rgba(0,0,0,0.05); }
+    .map-road.h { height: 3px; }
+    .map-road.v { width: 3px; }
+    .map-road.main-road { background: rgba(255,255,255,0.07); }
+    html.light .map-road.main-road { background: rgba(0,0,0,0.08); }
+    .map-road.main-road.h { height: 5px; }
+    .map-road.main-road.v { width: 5px; }
+
+    /* Buildings / zones */
+    .map-zone {
+      position: absolute;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.55rem;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      letter-spacing: 0.03em;
+    }
+    html.light .map-zone { border-color: rgba(0,0,0,0.06); }
+    .map-zone.govt { background: rgba(6,182,212,0.06); border-color: rgba(6,182,212,0.12); }
+    .map-zone.market { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.1); }
+    .map-zone.school { background: rgba(139,92,246,0.06); border-color: rgba(139,92,246,0.1); }
+    .map-zone.temple { background: rgba(249,115,22,0.06); border-color: rgba(249,115,22,0.1); }
+    .map-zone.park { background: rgba(16,185,129,0.06); border-color: rgba(16,185,129,0.1); }
+    .map-zone.hospital { background: rgba(239,68,68,0.06); border-color: rgba(239,68,68,0.1); }
+
+    /* Map Sensor Nodes */
+    .sensor-node {
+      position: absolute;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 300ms var(--ease);
+      z-index: 5;
+    }
+    .sensor-node::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 12px;
+      border: 1px solid;
+      opacity: 0.3;
+      animation: sensorPulse 3s ease-in-out infinite;
+    }
+    @keyframes sensorPulse {
+      0%,100% { transform: scale(1); opacity: 0.3; }
+      50% { transform: scale(1.3); opacity: 0; }
+    }
+    .sensor-node:hover { transform: scale(1.15); z-index: 10; }
+    .sensor-node svg { width: 14px; height: 14px; }
+    .sensor-node.cyan { background: rgba(6,182,212,0.2); color: var(--primary); border: 1px solid rgba(6,182,212,0.3); }
+    .sensor-node.cyan::before { border-color: var(--primary); }
+    .sensor-node.green { background: rgba(16,185,129,0.2); color: var(--accent); border: 1px solid rgba(16,185,129,0.3); }
+    .sensor-node.green::before { border-color: var(--accent); }
+    .sensor-node.yellow { background: rgba(245,158,11,0.2); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+    .sensor-node.yellow::before { border-color: var(--warning); }
+    .sensor-node.red { background: rgba(239,68,68,0.2); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+    .sensor-node.red::before { border-color: var(--danger); }
+    .sensor-node.purple { background: rgba(139,92,246,0.2); color: var(--purple); border: 1px solid rgba(139,92,246,0.3); }
+    .sensor-node.purple::before { border-color: var(--purple); }
+
+    .sensor-label {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.55rem;
+      font-family: var(--mono);
+      white-space: nowrap;
+      padding: 0.1rem 0.3rem;
+      background: var(--surface);
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      opacity: 0;
+      transition: opacity 200ms;
+      pointer-events: none;
+    }
+    .sensor-node:hover .sensor-label { opacity: 1; }
+
+    /* Issue pins on map */
+    .issue-pin {
+      position: absolute;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 4;
+      transition: all 200ms;
+    }
+    .issue-pin::after {
+      content: '';
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 1px solid;
+      opacity: 0.3;
+      animation: pinGrow 2.5s ease-out infinite;
+    }
+    @keyframes pinGrow {
+      0% { transform: scale(1); opacity: 0.3; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+    .issue-pin:hover { transform: scale(1.5); }
+    .issue-pin.urgent { background: rgba(239,68,68,0.6); border: 2px solid var(--danger); }
+    .issue-pin.urgent::after { border-color: var(--danger); }
+    .issue-pin.pending { background: rgba(245,158,11,0.5); border: 2px solid var(--warning); }
+    .issue-pin.pending::after { border-color: var(--warning); }
+    .issue-pin.progress { background: rgba(6,182,212,0.5); border: 2px solid var(--primary); }
+    .issue-pin.progress::after { border-color: var(--primary); }
+    .issue-pin.done { background: rgba(16,185,129,0.5); border: 2px solid var(--accent); }
+    .issue-pin.done::after { border-color: var(--accent); animation: none; }
+
+    /* Connection lines between sensors */
+    .connection-line {
+      position: absolute;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(6,182,212,0.12), transparent);
+      transform-origin: left center;
+      z-index: 2;
+      animation: lineFlow 4s linear infinite;
+    }
+    @keyframes lineFlow {
+      0% { opacity: 0.2; }
+      50% { opacity: 0.5; }
+      100% { opacity: 0.2; }
+    }
+
+    /* Map floating panels */
+    .map-panel {
+      position: absolute;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem;
+      z-index: 10;
+      backdrop-filter: blur(12px);
+    }
+    html.light .map-panel { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+
+    /* Map legend */
+    .map-legend {
+      bottom: 1rem;
+      left: 1rem;
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.6rem;
+      color: var(--text-muted);
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* Map IoT stats */
+    .map-stats {
+      top: 1rem;
+      left: 1rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+    .map-stat {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.6rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.65rem;
+    }
+    .map-stat-icon {
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .map-stat-icon svg { width: 12px; height: 12px; }
+    .map-stat-val { font-weight: 700; font-family: var(--mono); font-size: 0.7rem; }
+    .map-stat-unit { color: var(--text-muted); font-size: 0.55rem; }
+
+    /* City skyline silhouette */
+    .city-skyline {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 120px;
+      opacity: 0.03;
+      pointer-events: none;
+    }
+
+    /* === RIGHT PANEL === */
+    .right-panel {
+      grid-column: 2;
+      grid-row: 1 / -1;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 0.75rem;
+    }
+    .panel-tab {
+      padding: 0.75rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 200ms;
+    }
+    .panel-tab:hover { color: var(--text); }
+    .panel-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .panel-content { flex: 1; overflow-y: auto; padding: 1rem; }
+
+    /* Sensor cards in panel */
+    .sensor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .sensor-card {
+      padding: 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: all 200ms;
+    }
+    .sensor-card:hover { border-color: var(--border-2); }
+    .sensor-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    .sensor-card-icon {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sensor-card-icon svg { width: 14px; height: 14px; }
+    .sensor-status {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    .sensor-status.ok { background: var(--accent); }
+    .sensor-status.warn { background: var(--warning); }
+    .sensor-status.bad { background: var(--danger); }
+    .sensor-card-value {
+      font-size: 1.3rem;
+      font-weight: 800;
+      font-family: var(--mono);
+      letter-spacing: -0.03em;
+    }
+    .sensor-card-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 0.1rem;
+    }
+    .sensor-card-trend {
+      font-size: 0.55rem;
+      font-family: var(--mono);
+      margin-top: 0.25rem;
+    }
+    .trend-up { color: var(--danger); }
+    .trend-down { color: var(--accent); }
+    .trend-stable { color: var(--text-dim); }
+
+    /* Activity Feed */
+    .feed-title {
+      font-weight: 700;
+      font-size: 0.8rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .feed-list { display: flex; flex-direction: column; }
+    .feed-item {
+      display: flex;
+      gap: 0.6rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      transition: all 200ms;
+      cursor: pointer;
+    }
+    .feed-item:hover { background: var(--surface-2); margin: 0 -0.5rem; padding: 0.6rem 0.5rem; border-radius: 8px; }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .feed-icon svg { width: 14px; height: 14px; }
+    .feed-icon.report { background: rgba(239,68,68,0.1); color: var(--danger); }
+    .feed-icon.resolved { background: rgba(16,185,129,0.1); color: var(--accent); }
+    .feed-icon.queue { background: rgba(6,182,212,0.1); color: var(--primary); }
+    .feed-icon.payment { background: rgba(139,92,246,0.1); color: var(--purple); }
+    .feed-icon.sensor { background: rgba(245,158,11,0.1); color: var(--warning); }
+    .feed-body { flex: 1; min-width: 0; }
+    .feed-text { font-size: 0.75rem; line-height: 1.4; }
+    .feed-text strong { font-weight: 600; }
+    .feed-time { font-size: 0.6rem; color: var(--text-dim); font-family: var(--mono); margin-top: 0.15rem; }
+
+    /* Stats summary */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .mini-stat {
+      text-align: center;
+      padding: 0.6rem 0.25rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .mini-stat-val {
+      font-size: 1.1rem;
+      font-weight: 800;
+      font-family: var(--mono);
+      letter-spacing: -0.03em;
+    }
+    .mini-stat-label {
+      font-size: 0.55rem;
+      color: var(--text-muted);
+      margin-top: 0.1rem;
+    }
+
+    /* Chart small */
+    .chart-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .chart-title {
+      font-weight: 700;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .chart-period {
+      display: flex;
+      gap: 0.2rem;
+    }
+    .chart-period button {
+      padding: 0.2rem 0.4rem;
+      font-size: 0.6rem;
+      font-family: var(--mono);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 200ms;
+    }
+    .chart-period button:hover { border-color: var(--border-2); color: var(--text); }
+    .chart-period button.active { border-color: var(--primary); color: var(--primary); background: var(--glow-cyan); }
+    .chart-container { height: 150px; }
+
+    /* Bottom status bar */
+    .status-bar {
+      height: 36px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      gap: 1.5rem;
+      font-size: 0.6rem;
+      font-family: var(--mono);
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+    .status-dot.online { background: var(--accent); animation: pulse 2s infinite; }
+    .status-dot.warning { background: var(--warning); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 2px; }
+
+    /* Animations */
+    .fade-in { animation: fadeIn 500ms var(--ease) both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    @media (max-width: 900px) {
+      .content-area { grid-template-columns: 1fr; }
+      .right-panel { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SLIM NAV -->
+<nav class="nav">
+  <div class="nav-logo">
+    <img src="logo-ppnr.png" alt="โลโก้" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
+  </div>
+  <div class="nav-item active" title="แดชบอร์ด">
+    <i data-lucide="layout-dashboard"></i>
+  </div>
+  <div class="nav-item" title="แผนที่เมือง">
+    <i data-lucide="map"></i>
+  </div>
+  <div class="nav-item" title="แจ้งปัญหา">
+    <i data-lucide="message-circle-warning"></i>
+    <div class="nav-badge"></div>
+  </div>
+  <div class="nav-item" title="คิวบริการ">
+    <i data-lucide="calendar-clock"></i>
+  </div>
+  <div class="nav-item" title="ชำระเงิน">
+    <i data-lucide="credit-card"></i>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-item" title="IoT เซ็นเซอร์">
+    <i data-lucide="cpu"></i>
+  </div>
+  <div class="nav-item" title="ข่าวสาร">
+    <i data-lucide="megaphone"></i>
+  </div>
+  <div class="nav-item" title="งบประมาณ">
+    <i data-lucide="wallet"></i>
+  </div>
+  <div class="nav-spacer"></div>
+  <div class="nav-divider"></div>
+  <div class="nav-item" title="ตั้งค่า">
+    <i data-lucide="settings"></i>
+  </div>
+  <div class="nav-item" title="ผู้ดูแล" style="margin-bottom:0.5rem">
+    <i data-lucide="user-circle"></i>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-city">
+      <div class="topbar-name">เทศบาลตำบลเมืองสวย</div>
+      <div class="topbar-type">SMART CITY</div>
+    </div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-weather">
+      <div class="weather-item">
+        <i data-lucide="thermometer" style="width:13px;height:13px"></i>
+        <span class="weather-val">32°C</span>
+      </div>
+      <div class="weather-item">
+        <i data-lucide="wind" style="width:13px;height:13px"></i>
+        <span class="weather-val">PM2.5</span>
+        <span class="weather-val aqi-good">28</span>
+      </div>
+      <div class="weather-item">
+        <i data-lucide="droplets" style="width:13px;height:13px"></i>
+        <span class="weather-val">72%</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="live-indicator">
+        <div class="live-dot"></div>
+        LIVE
+      </div>
+      <div class="topbar-time" id="clock">14:32:08</div>
+      <button class="topbar-btn" onclick="toggleTheme()" title="สลับธีม">
+        <i data-lucide="sun" id="themeIcon"></i>
+      </button>
+      <button class="topbar-btn" title="แจ้งเตือน">
+        <i data-lucide="bell"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content-area">
+    <!-- MAP -->
+    <div class="map-section">
+      <div class="map-bg"></div>
+      <div class="map-grid"></div>
+
+      <!-- Roads -->
+      <div class="map-road main-road h" style="top:48%;left:5%;width:90%"></div>
+      <div class="map-road main-road v" style="top:10%;left:50%;height:80%"></div>
+      <div class="map-road h" style="top:25%;left:15%;width:70%"></div>
+      <div class="map-road h" style="top:72%;left:10%;width:80%"></div>
+      <div class="map-road v" style="top:20%;left:25%;height:60%"></div>
+      <div class="map-road v" style="top:15%;left:75%;height:65%"></div>
+      <div class="map-road h" style="top:38%;left:25%;width:50%"></div>
+      <div class="map-road v" style="top:38%;left:38%;height:34%"></div>
+
+      <!-- Zones -->
+      <div class="map-zone govt" style="top:42%;left:46%;width:80px;height:50px">เทศบาล</div>
+      <div class="map-zone market" style="top:55%;left:30%;width:60px;height:40px">ตลาดสด</div>
+      <div class="map-zone school" style="top:20%;left:60%;width:70px;height:40px">ร.ร.เมืองสวย</div>
+      <div class="map-zone temple" style="top:65%;left:65%;width:60px;height:40px">วัดใหญ่</div>
+      <div class="map-zone park" style="top:30%;left:18%;width:55px;height:35px">สวนสาธารณะ</div>
+      <div class="map-zone hospital" style="top:18%;left:38%;width:55px;height:35px">รพ.สต.</div>
+
+      <!-- IoT Sensor Nodes -->
+      <div class="sensor-node cyan" style="top:44%;left:48%">
+        <i data-lucide="wifi"></i>
+        <div class="sensor-label">WiFi สาธารณะ · 847 users</div>
+      </div>
+      <div class="sensor-node green" style="top:21%;left:42%">
+        <i data-lucide="heart-pulse"></i>
+        <div class="sensor-label">AED เครื่อง #2 · พร้อมใช้</div>
+      </div>
+      <div class="sensor-node cyan" style="top:56%;left:72%">
+        <i data-lucide="camera"></i>
+        <div class="sensor-label">CCTV #7 · Online</div>
+      </div>
+      <div class="sensor-node green" style="top:70%;left:35%">
+        <i data-lucide="trash-2"></i>
+        <div class="sensor-label">ถังขยะ Smart · 67% เต็ม</div>
+      </div>
+      <div class="sensor-node yellow" style="top:36%;left:28%">
+        <i data-lucide="lightbulb"></i>
+        <div class="sensor-label">ไฟถนน #12 · สว่าง 85%</div>
+      </div>
+      <div class="sensor-node cyan" style="top:75%;left:58%">
+        <i data-lucide="droplets"></i>
+        <div class="sensor-label">ระดับน้ำ · 1.2m ปกติ</div>
+      </div>
+      <div class="sensor-node purple" style="top:28%;left:70%">
+        <i data-lucide="gauge"></i>
+        <div class="sensor-label">PM2.5 · 28 μg/m³ ดี</div>
+      </div>
+
+      <!-- Issue Pins -->
+      <div class="issue-pin urgent" style="top:40%;left:32%"></div>
+      <div class="issue-pin pending" style="top:58%;left:50%"></div>
+      <div class="issue-pin progress" style="top:35%;left:62%"></div>
+      <div class="issue-pin done" style="top:68%;left:78%"></div>
+      <div class="issue-pin pending" style="top:25%;left:52%"></div>
+      <div class="issue-pin urgent" style="top:78%;left:45%"></div>
+      <div class="issue-pin done" style="top:50%;left:20%"></div>
+      <div class="issue-pin progress" style="top:62%;left:42%"></div>
+
+      <!-- Floating Stats -->
+      <div class="map-panel map-stats">
+        <div class="map-stat">
+          <div class="map-stat-icon" style="background:rgba(6,182,212,0.1);color:var(--primary)">
+            <i data-lucide="cpu"></i>
+          </div>
+          <div>
+            <div class="map-stat-val">24</div>
+            <div class="map-stat-unit">เซ็นเซอร์</div>
+          </div>
+        </div>
+        <div class="map-stat">
+          <div class="map-stat-icon" style="background:rgba(16,185,129,0.1);color:var(--accent)">
+            <i data-lucide="check-circle-2"></i>
+          </div>
+          <div>
+            <div class="map-stat-val" style="color:var(--accent)">22</div>
+            <div class="map-stat-unit">ออนไลน์</div>
+          </div>
+        </div>
+        <div class="map-stat">
+          <div class="map-stat-icon" style="background:rgba(245,158,11,0.1);color:var(--warning)">
+            <i data-lucide="alert-triangle"></i>
+          </div>
+          <div>
+            <div class="map-stat-val" style="color:var(--warning)">2</div>
+            <div class="map-stat-unit">แจ้งเตือน</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="map-panel map-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div> เร่งด่วน</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--warning)"></div> รอดำเนินการ</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--primary)"></div> กำลังแก้ไข</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> เสร็จแล้ว</div>
+        <div class="legend-item" style="margin-left:0.5rem;padding-left:0.75rem;border-left:1px solid var(--border)"><div class="legend-dot" style="background:var(--primary);border-radius:4px;width:10px;height:10px"></div> IoT Sensor</div>
+      </div>
+
+      <!-- City Skyline -->
+      <svg class="city-skyline" viewBox="0 0 1200 120" preserveAspectRatio="none" fill="currentColor">
+        <path d="M0,120 L0,80 L40,80 L40,60 L50,60 L50,45 L60,45 L60,60 L80,60 L80,80 L120,80 L120,50 L130,50 L130,30 L140,30 L140,50 L160,50 L160,80 L200,80 L200,70 L220,70 L220,40 L235,40 L235,25 L250,20 L265,25 L265,40 L280,40 L280,70 L320,70 L320,80 L360,80 L360,55 L370,55 L370,35 L385,35 L385,15 L395,15 L395,35 L410,35 L410,55 L440,55 L440,80 L480,80 L480,65 L500,65 L500,45 L510,45 L510,30 L520,30 L520,45 L540,45 L540,65 L560,65 L560,80 L600,80 L600,60 L620,60 L620,38 L640,38 L640,20 L660,20 L660,38 L680,38 L680,60 L720,60 L720,80 L760,80 L760,70 L780,70 L780,50 L800,50 L800,35 L820,30 L840,35 L840,50 L860,50 L860,70 L900,70 L900,80 L940,80 L940,45 L955,45 L955,25 L970,25 L970,45 L990,45 L990,80 L1020,80 L1020,55 L1040,55 L1040,40 L1060,40 L1060,55 L1080,55 L1080,80 L1120,80 L1120,65 L1140,65 L1140,50 L1160,50 L1160,65 L1200,65 L1200,120 Z"/>
+      </svg>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+      <div class="panel-tabs">
+        <div class="panel-tab active" onclick="switchTab(this,'overview')">ภาพรวม</div>
+        <div class="panel-tab" onclick="switchTab(this,'activity')">กิจกรรม</div>
+        <div class="panel-tab" onclick="switchTab(this,'alerts')">แจ้งเตือน</div>
+      </div>
+
+      <div class="panel-content" id="panelContent">
+        <!-- Stats Row -->
+        <div class="stats-row fade-in">
+          <div class="mini-stat">
+            <div class="mini-stat-val" style="color:var(--danger)">247</div>
+            <div class="mini-stat-label">ร้องเรียน</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-val" style="color:var(--accent)">89%</div>
+            <div class="mini-stat-label">แก้ไขแล้ว</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-val" style="color:var(--primary)">12.8K</div>
+            <div class="mini-stat-label">ผู้ใช้งาน</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-val" style="color:var(--warning)">4.7</div>
+            <div class="mini-stat-label">ความพอใจ</div>
+          </div>
+        </div>
+
+        <!-- Sensor Cards -->
+        <div class="feed-title">
+          <i data-lucide="cpu" style="width:14px;height:14px;color:var(--primary)"></i>
+          IoT เซ็นเซอร์
+        </div>
+        <div class="sensor-grid fade-in" style="animation-delay:100ms">
+          <div class="sensor-card">
+            <div class="sensor-card-top">
+              <div class="sensor-card-icon" style="background:rgba(6,182,212,0.1);color:var(--primary)">
+                <i data-lucide="thermometer"></i>
+              </div>
+              <div class="sensor-status ok"></div>
+            </div>
+            <div class="sensor-card-value">32.4°</div>
+            <div class="sensor-card-label">อุณหภูมิ</div>
+            <div class="sensor-card-trend trend-up">▲ +1.2° จากเมื่อวาน</div>
+          </div>
+          <div class="sensor-card">
+            <div class="sensor-card-top">
+              <div class="sensor-card-icon" style="background:rgba(16,185,129,0.1);color:var(--accent)">
+                <i data-lucide="wind"></i>
+              </div>
+              <div class="sensor-status ok"></div>
+            </div>
+            <div class="sensor-card-value" style="color:var(--accent)">28</div>
+            <div class="sensor-card-label">PM2.5 (μg/m³)</div>
+            <div class="sensor-card-trend trend-down">▼ -5 คุณภาพดี</div>
+          </div>
+          <div class="sensor-card">
+            <div class="sensor-card-top">
+              <div class="sensor-card-icon" style="background:rgba(59,130,246,0.1);color:#3B82F6">
+                <i data-lucide="droplets"></i>
+              </div>
+              <div class="sensor-status ok"></div>
+            </div>
+            <div class="sensor-card-value">1.2m</div>
+            <div class="sensor-card-label">ระดับน้ำ</div>
+            <div class="sensor-card-trend trend-stable">— ปกติ</div>
+          </div>
+          <div class="sensor-card">
+            <div class="sensor-card-top">
+              <div class="sensor-card-icon" style="background:rgba(245,158,11,0.1);color:var(--warning)">
+                <i data-lucide="zap"></i>
+              </div>
+              <div class="sensor-status warn"></div>
+            </div>
+            <div class="sensor-card-value">847</div>
+            <div class="sensor-card-label">WiFi Users</div>
+            <div class="sensor-card-trend trend-up">▲ +12% สูง</div>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-section fade-in" style="animation-delay:200ms">
+          <div class="chart-header">
+            <div class="chart-title">
+              <i data-lucide="activity" style="width:14px;height:14px;color:var(--primary)"></i>
+              ร้องเรียน / แก้ไข
+            </div>
+            <div class="chart-period">
+              <button class="active">7d</button>
+              <button>30d</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="issueChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="chart-section fade-in" style="animation-delay:300ms">
+          <div class="feed-title">
+            <i data-lucide="activity" style="width:14px;height:14px;color:var(--accent)"></i>
+            กิจกรรมล่าสุด
+          </div>
+          <div class="feed-list">
+            <div class="feed-item">
+              <div class="feed-icon report"><i data-lucide="alert-circle"></i></div>
+              <div class="feed-body">
+                <div class="feed-text"><strong>แจ้งใหม่:</strong> ไฟถนนดับทั้งซอย 12</div>
+                <div class="feed-time">15 นาที ที่แล้ว</div>
+              </div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-icon resolved"><i data-lucide="check-circle-2"></i></div>
+              <div class="feed-body">
+                <div class="feed-text"><strong>แก้ไขแล้ว:</strong> ท่อน้ำแตก ซอย 3</div>
+                <div class="feed-time">42 นาที ที่แล้ว</div>
+              </div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-icon sensor"><i data-lucide="cpu"></i></div>
+              <div class="feed-body">
+                <div class="feed-text"><strong>เซ็นเซอร์:</strong> ถังขยะ #5 เต็ม 90% — แจ้งรถเก็บ</div>
+                <div class="feed-time">1 ชม. ที่แล้ว</div>
+              </div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-icon queue"><i data-lucide="users"></i></div>
+              <div class="feed-body">
+                <div class="feed-text"><strong>คิว:</strong> สำนักทะเบียนมี 12 คิวรอ</div>
+                <div class="feed-time">1.5 ชม. ที่แล้ว</div>
+              </div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-icon payment"><i data-lucide="receipt"></i></div>
+              <div class="feed-body">
+                <div class="feed-text"><strong>ชำระเงิน:</strong> เก็บค่าน้ำออนไลน์ ฿ 12,450 วันนี้</div>
+                <div class="feed-time">2 ชม. ที่แล้ว</div>
+              </div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-icon report"><i data-lucide="alert-circle"></i></div>
+              <div class="feed-body">
+                <div class="feed-text"><strong>แจ้งใหม่:</strong> ถนนเป็นหลุม หน้าตลาดสด</div>
+                <div class="feed-time">3 ชม. ที่แล้ว</div>
+              </div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-icon resolved"><i data-lucide="check-circle-2"></i></div>
+              <div class="feed-body">
+                <div class="feed-text"><strong>แก้ไขแล้ว:</strong> ต้นไม้ล้มขวางทาง ถนนหลัก</div>
+                <div class="feed-time">4 ชม. ที่แล้ว</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-dot online"></div>
+      ระบบปกติ
+    </div>
+    <div class="status-item">เซ็นเซอร์: 22/24 ออนไลน์</div>
+    <div class="status-item">CCTV: 8/8 ออนไลน์</div>
+    <div class="status-item">WiFi: 3/3 จุด</div>
+    <div class="status-item" style="margin-left:auto">เมืองดี Smart City Platform v1.0</div>
+  </div>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('th-TH', { hour12: false });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Theme toggle
+  let isDark = true;
+  function toggleTheme() {
+    isDark = !isDark;
+    document.documentElement.classList.toggle('light', !isDark);
+    const icon = document.getElementById('themeIcon');
+    icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+    lucide.createIcons();
+  }
+
+  // Panel tabs
+  function switchTab(el, tab) {
+    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // Nav active
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+
+  // Chart.js
+  const ctx = document.getElementById('issueChart').getContext('2d');
+  const g1 = ctx.createLinearGradient(0, 0, 0, 150);
+  g1.addColorStop(0, 'rgba(6,182,212,0.2)');
+  g1.addColorStop(1, 'rgba(6,182,212,0)');
+  const g2 = ctx.createLinearGradient(0, 0, 0, 150);
+  g2.addColorStop(0, 'rgba(16,185,129,0.2)');
+  g2.addColorStop(1, 'rgba(16,185,129,0)');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'],
+      datasets: [
+        {
+          label: 'ร้องเรียน',
+          data: [42, 38, 55, 47, 33, 28, 35],
+          borderColor: '#06B6D4',
+          backgroundColor: g1,
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: '#06B6D4',
+          pointBorderColor: '#111827',
+          pointBorderWidth: 2,
+        },
+        {
+          label: 'แก้ไขแล้ว',
+          data: [38, 35, 48, 44, 31, 26, 33],
+          borderColor: '#10B981',
+          backgroundColor: g2,
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: '#10B981',
+          pointBorderColor: '#111827',
+          pointBorderWidth: 2,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#6B7280',
+            font: { family: "'Plus Jakarta Sans','Noto Sans Thai',sans-serif", size: 10 },
+            padding: 12,
+            usePointStyle: true,
+            pointStyleWidth: 6,
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
+          ticks: { color: '#6B7280', font: { size: 10 } }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
+          ticks: { color: '#6B7280', font: { size: 10 } },
+          beginAtZero: true,
+        }
+      },
+      interaction: { intersect: false, mode: 'index' },
+    }
+  });
+
+  // Animate sensor values
+  document.querySelectorAll('.sensor-card-value').forEach(el => {
+    const text = el.textContent;
+    const num = parseFloat(text.replace(/[^0-9.]/g, ''));
+    if (isNaN(num)) return;
+    const suffix = text.replace(/[0-9.]/g, '');
+    const isDecimal = text.includes('.');
+    let current = 0;
+    const step = num / 30;
+    const timer = setInterval(() => {
+      current += step;
+      if (current >= num) { current = num; clearInterval(timer); }
+      el.textContent = (isDecimal ? current.toFixed(1) : Math.round(current).toLocaleString()) + suffix;
+    }, 30);
+  });
+
+  // Mini stat animation
+  document.querySelectorAll('.mini-stat-val').forEach(el => {
+    const text = el.textContent;
+    const hasK = text.includes('K');
+    const num = parseFloat(text.replace(/[^0-9.]/g, ''));
+    const suffix = text.includes('%') ? '%' : (hasK ? 'K' : text.includes('.') ? '' : '');
+    if (isNaN(num)) return;
+    let current = 0;
+    const step = num / 30;
+    const timer = setInterval(() => {
+      current += step;
+      if (current >= num) { current = num; clearInterval(timer); }
+      if (text.includes('.')) el.textContent = current.toFixed(1) + suffix;
+      else el.textContent = Math.round(current) + suffix;
+    }, 30);
+  });
+
+  // Random sensor node pulse
+  setInterval(() => {
+    const nodes = document.querySelectorAll('.sensor-node');
+    const node = nodes[Math.floor(Math.random() * nodes.length)];
+    node.style.transform = 'scale(1.15)';
+    node.style.boxShadow = '0 0 15px rgba(6,182,212,0.3)';
+    setTimeout(() => { node.style.transform = ''; node.style.boxShadow = ''; }, 800);
+  }, 3000);
+</script>
+
+</body>
+</html>

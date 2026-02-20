@@ -38,6 +38,17 @@
     .complaint-row .meta { color:#999; font-size:.75rem; margin-top:2px; }
     .progress-bar { height:6px; border-radius:3px; background:#eee; overflow:hidden; margin-top:4px; }
     .progress-bar .fill { height:100%; border-radius:3px; background:#4CAF50; }
+    .satis-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px; }
+    @media(max-width:600px){ .satis-row { grid-template-columns:1fr; } }
+    .satis-card { background:#fff; border-radius:10px; padding:16px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .satis-card .number { font-size:1.8rem; font-weight:700; color:#9C27B0; }
+    .satis-card .stars { color:#FFC107; font-size:1.2rem; }
+    .satis-card .label { font-size:.8rem; color:#666; margin-top:4px; }
+    .satis-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+    .satis-table th { background:#9C27B0; color:#fff; padding:10px 8px; text-align:left; }
+    .satis-table td { padding:10px 8px; border-bottom:1px solid #eee; }
+    .rating-bar { display:inline-block; height:8px; border-radius:4px; background:#E1BEE7; }
+    .rating-bar .fill { height:100%; border-radius:4px; background:#9C27B0; display:block; }
   </style>
 </head>
 <body>
@@ -45,10 +56,11 @@
     <div id="loading" class="loading">กำลังโหลด Dashboard...</div>
     <div id="content" class="hidden">
       <div class="exec-header">
-        <h1>เทศบาลตำบลพลับพลานารายณ์</h1>
+        <h1><img src="logo-ppnr.png" alt="โลโก้" style="width:40px;height:40px;vertical-align:middle;border-radius:50%;margin-right:8px;">เทศบาลตำบลพลับพลานารายณ์</h1>
         <div class="sub">Dashboard ผู้บริหาร</div>
       </div>
       <div class="kpi-row" id="kpiRow"></div>
+      <div class="satis-row" id="satisRow"></div>
       <div class="chart-card"><h3>เปรียบเทียบคำร้องตามกอง</h3><canvas id="deptChart"></canvas></div>
       <div class="two-col">
         <div class="chart-card"><h3>แนวโน้มรายวัน (30 วัน)</h3><canvas id="dailyChart"></canvas></div>
@@ -59,6 +71,7 @@
         <div class="chart-card"><h3>หมวดร้องเรียนสูงสุด</h3><canvas id="categoryChart"></canvas></div>
       </div>
       <div class="chart-card"><h3>ผลงานแต่ละกอง</h3><div style="overflow-x:auto;"><table class="dept-table" id="deptTable"></table></div></div>
+      <div class="chart-card"><h3>⭐ คะแนนความพึงพอใจแยกรายกอง</h3><div style="overflow-x:auto;"><table class="satis-table" id="satisTable"></table></div></div>
       <div class="chart-card"><h3>คำร้องล่าสุด</h3><div id="recentList"></div></div>
     </div>
     <div id="result" class="result hidden"></div>
@@ -93,6 +106,19 @@
         <div class="kpi-card"><div class="number">${d.overall.totalThisMonth}</div><div class="label">เดือนนี้</div></div>
         <div class="kpi-card"><div class="number">${d.overall.totalToday}</div><div class="label">วันนี้</div></div>
         <div class="kpi-card green"><div class="number">${d.overall.completionRate}%</div><div class="label">อัตราสำเร็จ</div></div>`;
+
+      // Satisfaction overview
+      const sat = d.satisfaction || {};
+      function starDisplay(rating) {
+        if (!rating) return '<span style="color:#999">-</span>';
+        const full = Math.floor(rating);
+        const half = rating - full >= 0.5 ? 1 : 0;
+        return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(5 - full - half);
+      }
+      document.getElementById('satisRow').innerHTML = `
+        <div class="satis-card"><div class="number">${sat.totalResponses || 0}</div><div class="label">ผู้ตอบแบบสำรวจ</div></div>
+        <div class="satis-card"><div class="number">${sat.avgSystemRating ?? '-'}</div><div class="stars">${starDisplay(sat.avgSystemRating)}</div><div class="label">🤖 ระบบน้องพลับพลานารายณ์</div></div>
+        <div class="satis-card"><div class="number">${sat.avgOfficerRating ?? '-'}</div><div class="stars">${starDisplay(sat.avgOfficerRating)}</div><div class="label">👷 เจ้าหน้าที่</div></div>`;
 
       // Department stacked bar
       const deptNames = d.departmentSummary.map(s => s.departmentName.replace('กอง','').trim() || s.departmentName);
@@ -150,6 +176,18 @@
             <td>${s.completionRate}%<div class="progress-bar"><div class="fill" style="width:${s.completionRate}%"></div></div></td>
             <td>${s.activeOfficers}</td>
           </tr>`).join('');
+
+      // Satisfaction by department table
+      const satByDept = sat.byDepartment || [];
+      document.getElementById('satisTable').innerHTML = `
+        <tr><th>กอง</th><th>ผู้ตอบ</th><th>ระบบ</th><th>เจ้าหน้าที่</th></tr>` +
+        (satByDept.length === 0
+          ? '<tr><td colspan="4" style="text-align:center;color:#999;padding:20px;">ยังไม่มีข้อมูล</td></tr>'
+          : satByDept.map(s => {
+            const sysBar = s.avgSystem ? `<div class="rating-bar" style="width:100px"><div class="fill" style="width:${s.avgSystem/5*100}%"></div></div> ${s.avgSystem}/5` : '-';
+            const offBar = s.avgOfficer ? `<div class="rating-bar" style="width:100px"><div class="fill" style="width:${s.avgOfficer/5*100}%"></div></div> ${s.avgOfficer}/5` : '-';
+            return `<tr><td>${s.departmentName}</td><td>${s.responses}</td><td>${sysBar}</td><td>${offBar}</td></tr>`;
+          }).join(''));
 
       // Recent complaints
       document.getElementById('recentList').innerHTML = d.recentComplaints.length === 0

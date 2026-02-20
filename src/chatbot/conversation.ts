@@ -9,6 +9,7 @@ import { complaintService } from '../services/complaint.service.js';
 import { aiClassifier } from '../services/ai-classifier.service.js';
 import { notificationService } from '../services/notification.service.js';
 import { imageService } from '../services/image.service.js';
+import { confirmDataFlex } from '../flex-messages/complaint-card.js';
 
 const genAI = new GoogleGenerativeAI(env.googleAiApiKey);
 const anthropic = new Anthropic({ apiKey: env.anthropicApiKey });
@@ -17,6 +18,7 @@ interface Session {
   messages: { role: 'user' | 'assistant'; content: string }[];
   data: Record<string, any>;
   confirmed: boolean;
+  waitingConfirm?: boolean; // bot เพิ่งถามยืนยันไหม
 }
 
 async function getSession(platformUserId: string, platform: Platform): Promise<Session> {
@@ -57,7 +59,7 @@ async function resetSession(platformUserId: string, platform: Platform) {
   await saveSession(platformUserId, platform, { messages: [], data: {}, confirmed: false });
 }
 
-const SYSTEM_PROMPT = `คุณชื่อ "น้องพลับพลา" เป็นผู้ช่วย AI ของเทศบาลตำบลพลับพลานารายณ์ จังหวัดจันทบุรี
+const SYSTEM_PROMPT = `คุณชื่อ "น้องพลับพลานารายณ์" เป็นผู้ช่วย AI ของเทศบาลตำบลพลับพลานารายณ์ จังหวัดจันทบุรี
 
 ## บทบาท
 - รับเรื่องร้องเรียน/ร้องทุกข์จากประชาชน
@@ -65,10 +67,22 @@ const SYSTEM_PROMPT = `คุณชื่อ "น้องพลับพลา"
 - ติดตามสถานะคำร้อง
 
 ## วิธีสนทนา
-- พูดภาษาไทยเป็นกันเอง สุภาพ ใช้ค่ะ/คะ
-- ตอบสั้นกระชับ ไม่เกิน 3 บรรทัด
-- ถ้าประชาชนแจ้งปัญหา ให้ค่อยๆ ถามข้อมูลที่ขาดแบบธรรมชาติ ไม่ต้องถามทีเดียวทุกอย่าง
-- ถ้าเขาบอกข้อมูลมาหลายอย่างในข้อความเดียว ให้รับทั้งหมดเลย ไม่ต้องถามซ้ำ
+- พูดเหมือนคนจริงๆ เป็นกันเอง อบอุ่น ไม่เป็นทางการ
+- ใช้ค่ะ/คะ/นะคะ พูดสั้นๆ ไม่เกิน 2 บรรทัด
+- ห้ามพูดแบบหุ่นยนต์ ห้ามใช้คำว่า "ดิฉัน" "ท่าน" "กระผม"
+- ใช้คำง่ายๆ เช่น "ได้เลยค่ะ" "รับทราบค่ะ" "ช่วยบอก...หน่อยนะคะ"
+- ถ้าประชาชนแจ้งปัญหา ค่อยๆ ถามข้อมูลที่ขาดทีละอย่าง แบบธรรมชาติ
+- ถ้าเขาบอกมาหลายอย่างในข้อความเดียว รับทั้งหมดเลย ไม่ต้องถามซ้ำ
+
+## ตัวอย่างโทนที่ถูก
+- "สวัสดีค่า~ มีอะไรให้พลับพลานารายณ์ช่วยคะ?"
+- "รับทราบค่ะ อยู่แถวไหนคะ?"
+- "ขอชื่อกับเบอร์โทรด้วยนะคะ"
+
+## ตัวอย่างโทนที่ผิด (ห้ามใช้)
+- "สวัสดีค่ะ ดิฉันน้องพลับพลานารายณ์ ผู้ช่วย AI ของเทศบาล..."
+- "กรุณาแจ้งรายละเอียดของปัญหาที่ท่านพบ"
+- "ขอทราบข้อมูลเพิ่มเติมดังต่อไปนี้..."
 
 ## ข้อมูลที่ต้องเก็บให้ครบก่อนสร้างคำร้อง
 1. **issue** — ปัญหาอะไร (ต้องมี)
@@ -78,14 +92,18 @@ const SYSTEM_PROMPT = `คุณชื่อ "น้องพลับพลา"
 5. **photo** — รูปถ่าย (ถามแต่ไม่บังคับ)
 
 ## กฎสำคัญ
-- เมื่อได้ข้อมูลครบ 4 ข้อ (issue, location, contactName, contactPhone) → ถามว่ามีรูปถ่ายส่งมาเพิ่มเติมไหม (ไม่บังคับ) แล้วสรุปข้อมูลให้ประชาชนยืนยัน
-- ถ้าประชาชนส่งรูปมาแล้ว (photo มีข้อมูล) ไม่ต้องถามรูปซ้ำ
-- ถ้าเขาพิมพ์มาว่า "ไฟหน้าบ้านดับ อยู่หมู่ 5 ชื่อสมศรี 089-123-4567" ให้รับทุกข้อมูลเลย ไม่ต้องถามทีละข้อ
-- ถ้าประชาชนแค่ทักทาย ให้ทักทายกลับแล้วถามว่ามีอะไรให้ช่วย
-- ถ้าถามเรื่องทั่วไป ตอบได้เลย เช่น เบอร์เทศบาล 0-3941-8498
+- ได้ข้อมูลครบ 4 ข้อ (issue, location, contactName, contactPhone) → ถามว่า "มีรูปถ่ายจะส่งมาด้วยไหมคะ? ไม่มีก็ได้นะคะ" แล้วตั้ง askingPhoto=true, readyToConfirm=false (ยังไม่ยืนยัน!)
+- ถ้าส่งรูปมาแล้วก่อนหน้า (photo มีค่า) → ข้ามถามรูป ตั้ง readyToConfirm=true เลย
+- ถ้าตอบว่าไม่มีรูป/ไม่ส่ง/ไม่มี หรือส่งรูปมา → ตั้ง readyToConfirm=true (ระบบจะส่งปุ่มยืนยันให้เอง ไม่ต้องถามเป็นข้อความ)
+- ถ้าบอกมาครบเลย เช่น "ไฟดับ หมู่ 5 สมศรี 089-123-4567" → รับหมดเลย ไม่ต้องถามทีละข้อ แล้วถามรูปก่อนยืนยัน
+- ถ้าทักทาย → ทักกลับสั้นๆ ถามว่ามีอะไรให้ช่วย
+- ถ้าถามเรื่องทั่วไป → ตอบเลย เช่น เบอร์เทศบาล 0-3941-8498
 
 ## ตอบเป็น JSON เสมอ:
-{"reply": "ข้อความตอบ", "extracted": {"issue": null, "location": null, "contactName": null, "contactPhone": null, "photo": null}, "readyToConfirm": false, "isConfirmed": false, "isTracking": null}
+{"reply": "ข้อความตอบ", "extracted": {"issue": null, "location": null, "contactName": null, "contactPhone": null, "photo": null}, "askingPhoto": false, "readyToConfirm": false, "isConfirmed": false, "isTracking": null}
+
+- **askingPhoto**: true เมื่อกำลังถามว่ามีรูปไหม (ข้อมูลครบ 4 ข้อแล้ว แต่ยังไม่เคยถามรูป)
+- **readyToConfirm**: true เมื่อถามรูปแล้ว + ได้คำตอบแล้ว (หรือส่งรูปมาก่อนหน้าแล้ว) → ระบบจะส่งปุ่มยืนยันเอง
 
 - **extracted**: ใส่เฉพาะข้อมูลที่ได้จากข้อความ ข้อไหนยังไม่ได้ใส่ null
 - **readyToConfirm**: true เมื่อได้ข้อมูลครบ 4 ข้อแล้วและกำลังสรุปให้ยืนยัน
@@ -108,18 +126,32 @@ function getStatusText(status: string): string {
 // Gemini API call
 async function callGemini(session: Session, systemPrompt: string): Promise<string> {
   const chatModel = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     systemInstruction: systemPrompt,
     generationConfig: {
       responseMimeType: 'application/json',
     },
   });
-  const history = session.messages.slice(0, -1).map(m => ({
+  // Gemini ต้องเริ่มด้วย 'user' และสลับ user/model เสมอ
+  let history = session.messages.slice(0, -1).map(m => ({
     role: m.role === 'assistant' ? 'model' as const : 'user' as const,
     parts: [{ text: m.content }],
   }));
+  // ตัด leading model messages ออก
+  while (history.length > 0 && history[0].role === 'model') {
+    history.shift();
+  }
+  // รวม consecutive same-role messages
+  const merged: typeof history = [];
+  for (const h of history) {
+    if (merged.length > 0 && merged[merged.length - 1].role === h.role) {
+      merged[merged.length - 1].parts[0].text += '\n' + h.parts[0].text;
+    } else {
+      merged.push(h);
+    }
+  }
   const lastMessage = session.messages[session.messages.length - 1];
-  const chat = chatModel.startChat({ history });
+  const chat = chatModel.startChat({ history: merged });
   const result = await chat.sendMessage(lastMessage.content);
   return result.response.text();
 }
@@ -135,7 +167,7 @@ async function callClaude(session: Session, systemPrompt: string): Promise<strin
   return response.content[0].type === 'text' ? response.content[0].text : '';
 }
 
-export async function handleCitizenMessage(msg: UnifiedMessage): Promise<string[]> {
+export async function handleCitizenMessage(msg: UnifiedMessage): Promise<any[]> {
   const session = await getSession(msg.senderId, msg.platform);
   const text = msg.text?.trim() || '';
 
@@ -189,6 +221,7 @@ export async function handleCitizenMessage(msg: UnifiedMessage): Promise<string[
     }
 
     const reply = parsed.reply || aiText;
+    console.log('[CHAT] AI response:', JSON.stringify({ isConfirmed: parsed.isConfirmed, isTracking: parsed.isTracking, readyToConfirm: parsed.readyToConfirm, extracted: parsed.extracted }).slice(0, 300));
 
     // Store extracted data
     if (parsed.extracted) {
@@ -217,15 +250,39 @@ export async function handleCitizenMessage(msg: UnifiedMessage): Promise<string[
       }
     }
 
-    // Handle confirmed complaint — รวม fallback: ถ้า AI ไม่ตั้ง isConfirmed แต่ข้อมูลครบ + user พิมพ์ยืนยัน
-    const confirmWords = /^(ยืนยัน|ตกลง|โอเค|ถูกต้อง|ใช่|ok|yes|confirm)/i;
-    const isUserConfirming = parsed.isConfirmed || (session.data.issue && session.data.location && session.data.contactName && session.data.contactPhone && confirmWords.test(text));
-    if (isUserConfirming && session.data.issue && session.data.location && session.data.contactName) {
+    // ข้อมูลครบ + ถามรูป → ตอบถามรูปไปก่อน ยังไม่ส่ง Flex card
+    const dataReady = !!(session.data.issue && session.data.location && session.data.contactName && session.data.contactPhone);
+    if (parsed.askingPhoto && dataReady && !session.data.photo) {
+      session.messages.push({ role: 'assistant', content: reply });
+      await saveSession(msg.senderId, msg.platform, session);
+      return [reply];
+    }
+
+    // ข้อมูลครบ + readyToConfirm → ส่ง Flex card ให้กดยืนยัน
+    if (parsed.readyToConfirm && dataReady) {
+      session.waitingConfirm = true;
+      session.messages.push({ role: 'assistant', content: 'สรุปข้อมูลคำร้อง [Flex card ยืนยัน]' });
+      await saveSession(msg.senderId, msg.platform, session);
+
+      const flex = confirmDataFlex({
+        issue: session.data.issue,
+        location: session.data.location,
+        contactName: session.data.contactName,
+        contactPhone: session.data.contactPhone,
+        hasPhoto: !!session.data.photo,
+      });
+      return [flex];
+    }
+
+    // Handle confirmed จาก text (fallback กรณี platform อื่นที่ไม่มี postback)
+    if (parsed.isConfirmed && dataReady) {
+      console.log('[CHAT] Creating complaint (text confirm)...');
       const result = await createComplaint(msg, session);
       await resetSession(msg.senderId, msg.platform);
       return result;
     }
 
+    session.waitingConfirm = false;
     session.messages.push({ role: 'assistant', content: reply });
     await saveSession(msg.senderId, msg.platform, session);
     return [reply];
@@ -239,6 +296,53 @@ export async function handleCitizenMessage(msg: UnifiedMessage): Promise<string[
   }
 }
 
+// จัดการ postback จากปุ่ม Flex card (ยืนยัน/แก้ไข/ยกเลิก)
+export async function handleCitizenPostback(msg: UnifiedMessage): Promise<string[]> {
+  const params = new URLSearchParams(msg.postbackData || '');
+  const action = params.get('action');
+  const session = await getSession(msg.senderId, msg.platform);
+
+  console.log(`[POSTBACK] action=${action}, hasData=${JSON.stringify({
+    issue: !!session.data.issue,
+    location: !!session.data.location,
+    contactName: !!session.data.contactName,
+    contactPhone: !!session.data.contactPhone,
+  })}`);
+
+  switch (action) {
+    case 'citizen_confirm': {
+      if (!session.data.issue || !session.data.location || !session.data.contactName) {
+        console.log('[POSTBACK] No session data — session:', JSON.stringify(session.data));
+        return ['ข้อมูลคำร้องหายไป อาจเกิดจากระบบรีเซต\nกรุณาแจ้งเรื่องใหม่อีกครั้งนะคะ 🙏'];
+      }
+      try {
+        console.log('[POSTBACK] Creating complaint...');
+        const result = await createComplaint(msg, session);
+        await resetSession(msg.senderId, msg.platform);
+        console.log('[POSTBACK] Complaint created OK');
+        return result;
+      } catch (e: any) {
+        console.error('[POSTBACK] createComplaint error:', e?.message || e);
+        console.error('[POSTBACK] stack:', e?.stack);
+        return ['ขออภัยค่ะ เกิดข้อผิดพลาดในการสร้างคำร้อง กรุณาลองใหม่อีกครั้งนะคะ 🙏'];
+      }
+    }
+    case 'citizen_edit': {
+      session.waitingConfirm = false;
+      session.messages.push({ role: 'user', content: 'ขอแก้ไขข้อมูล' });
+      session.messages.push({ role: 'assistant', content: 'ได้เลยค่ะ บอกมาได้เลยว่าจะแก้อะไรนะคะ' });
+      await saveSession(msg.senderId, msg.platform, session);
+      return ['ได้เลยค่ะ บอกมาได้เลยว่าจะแก้อะไรนะคะ 😊'];
+    }
+    case 'citizen_cancel': {
+      await resetSession(msg.senderId, msg.platform);
+      return ['ยกเลิกเรียบร้อยค่ะ ถ้าต้องการแจ้งเรื่องใหม่ ทักมาได้ตลอดนะคะ 🙏'];
+    }
+    default:
+      return [];
+  }
+}
+
 async function createComplaint(msg: UnifiedMessage, session: Session): Promise<string[]> {
   const user = await userService.findOrCreate(msg.platform, msg.senderId, session.data.contactName);
 
@@ -249,10 +353,16 @@ async function createComplaint(msg: UnifiedMessage, session: Session): Promise<s
   }
 
   const classification = await aiClassifier.classify(session.data.issue);
-  const dept = await aiClassifier.getDepartmentByCode(classification.department);
+  let dept = await aiClassifier.getDepartmentByCode(classification.department);
 
+  // ถ้า AI ตอบ dept code ที่ไม่มีใน DB → fallback ไปสำนักปลัด
   if (!dept) {
-    return ['ขออภัยค่ะ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้งนะคะ'];
+    console.warn(`[COMPLAINT] AI dept "${classification.department}" not found, fallback to secretary`);
+    dept = await aiClassifier.getDepartmentByCode('secretary');
+  }
+  if (!dept) {
+    console.error('[COMPLAINT] Even secretary dept not found!');
+    return ['ขออภัยค่ะ ระบบเกิดข้อผิดพลาด กรุณาติดต่อเทศบาลโดยตรง 📞 0-3941-8498'];
   }
 
   const complaint = await complaintService.create({

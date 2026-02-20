@@ -3,7 +3,7 @@ import { middleware, WebhookEvent } from '@line/bot-sdk';
 import express from 'express';
 import { env } from '../config/env.js';
 import { lineAdapter } from '../adapters/line.adapter.js';
-import { handleCitizenMessage } from '../chatbot/conversation.js';
+import { handleCitizenMessage, handleCitizenPostback } from '../chatbot/conversation.js';
 import { handleGroupPostback, handleGroupCommand } from './line-group.handler.js';
 
 export const lineWebhook = Router();
@@ -54,10 +54,22 @@ async function handleLineEvent(event: WebhookEvent) {
 
   if (msg.chatType === 'user') {
     try {
+      // Postback จากปุ่ม Flex (ยืนยัน/แก้ไข/ยกเลิก)
+      if (msg.messageType === 'postback' && msg.postbackData?.startsWith('action=citizen_')) {
+        const responses = await handleCitizenPostback(msg);
+        if (responses.length > 0 && msg.replyToken) {
+          const messages = responses.map(text => ({ type: 'text' as const, text }));
+          await lineAdapter.replyMessages(msg.replyToken, messages);
+          console.log(`[LINE] Postback reply sent OK`);
+        }
+        return;
+      }
+
       const responses = await handleCitizenMessage(msg);
       console.log(`[LINE] AI replied ${responses.length} messages`);
       if (responses.length > 0 && msg.replyToken) {
-        const messages = responses.map(text => ({ type: 'text' as const, text }));
+        // รองรับทั้ง text string และ flex object
+        const messages = responses.map(r => typeof r === 'string' ? { type: 'text' as const, text: r } : r);
         await lineAdapter.replyMessages(msg.replyToken, messages);
         console.log(`[LINE] Reply sent OK`);
       }

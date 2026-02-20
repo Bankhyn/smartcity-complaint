@@ -1,5 +1,5 @@
 // Platform types
-export type Platform = 'line' | 'facebook';
+export type Platform = 'line' | 'facebook' | 'web';
 
 // Complaint status flow
 export type ComplaintStatus =

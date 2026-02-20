@@ -24,6 +24,11 @@
     .perf-card { background:#fff; border-radius:10px; padding:12px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.1); }
     .perf-card .number { font-size:1.3rem; font-weight:700; color:#1565C0; }
     .perf-card .label { font-size:.7rem; color:#999; margin-top:2px; }
+    .satis-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px; }
+    .satis-card { background:#fff; border-radius:10px; padding:12px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .satis-card .number { font-size:1.3rem; font-weight:700; color:#9C27B0; }
+    .satis-card .stars { color:#FFC107; font-size:1rem; }
+    .satis-card .label { font-size:.7rem; color:#999; margin-top:2px; }
     .chart-card { background:#fff; border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
     .chart-card h3 { font-size:.95rem; color:#333; margin:0 0 12px; }
     .workload-table { width:100%; border-collapse:collapse; font-size:.82rem; }
@@ -56,6 +61,7 @@
       </div>
       <div class="kpi-grid" id="kpiGrid"></div>
       <div class="perf-grid" id="perfGrid"></div>
+      <div class="satis-grid" id="satisGrid"></div>
       <div class="chart-card"><h3>คำร้องรายวัน (30 วัน)</h3><canvas id="dailyChart"></canvas></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
         <div class="chart-card"><h3>สถานะ</h3><canvas id="statusChart"></canvas></div>
@@ -121,6 +127,19 @@
         <div class="perf-card"><div class="number">${d.performance.avgAcceptTimeHours ?? '-'}</div><div class="label">ชม. เฉลี่ยรับเรื่อง</div></div>
         <div class="perf-card"><div class="number">${d.performance.avgResolveTimeHours ?? '-'}</div><div class="label">ชม. เฉลี่ยปิดงาน</div></div>
         <div class="perf-card"><div class="number">${d.performance.completionRate}%</div><div class="label">อัตราสำเร็จ</div></div>`;
+
+      // Satisfaction
+      const sat = d.satisfaction || {};
+      function starDisplay(rating) {
+        if (!rating) return '<span style="color:#999">-</span>';
+        const full = Math.floor(rating);
+        const half = rating - full >= 0.5 ? 1 : 0;
+        return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(5 - full - half);
+      }
+      document.getElementById('satisGrid').innerHTML = `
+        <div class="satis-card"><div class="number">${sat.totalResponses || 0}</div><div class="label">ผู้ตอบแบบสำรวจ</div></div>
+        <div class="satis-card"><div class="number">${sat.avgSystemRating ?? '-'}</div><div class="stars">${starDisplay(sat.avgSystemRating)}</div><div class="label">🤖 ระบบน้องพลับพลานารายณ์</div></div>
+        <div class="satis-card"><div class="number">${sat.avgOfficerRating ?? '-'}</div><div class="stars">${starDisplay(sat.avgOfficerRating)}</div><div class="label">👷 เจ้าหน้าที่</div></div>`;
 
       // Daily chart
       if (dailyChartInstance) dailyChartInstance.destroy();

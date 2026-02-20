@@ -122,6 +122,15 @@ dashboardApi.get('/department', authDashboard, async (req: any, res) => {
       contactName: c.contactName || '-',
     }));
 
+    // Satisfaction ratings สำหรับกองนี้
+    const allRatings = await db.select().from(schema.satisfactionRatings);
+    const deptComplaintIds = new Set(allComplaints.map(c => c.id));
+    const deptRatings = allRatings.filter(r => deptComplaintIds.has(r.complaintId));
+    const avgSystem = deptRatings.length > 0
+      ? Math.round(deptRatings.reduce((s, r) => s + (r.systemRating || 0), 0) / deptRatings.length * 10) / 10 : null;
+    const avgOfficer = deptRatings.length > 0
+      ? Math.round(deptRatings.reduce((s, r) => s + (r.officerRating || 0), 0) / deptRatings.length * 10) / 10 : null;
+
     res.json({
       department: { id: dept.id, code: dept.code, name: dept.name },
       officer: { id: officer.id, name: officer.name, position: officer.position },
@@ -130,6 +139,11 @@ dashboardApi.get('/department', authDashboard, async (req: any, res) => {
         avgAcceptTimeHours: acceptCount > 0 ? Math.round(totalAcceptHours / acceptCount * 10) / 10 : null,
         avgResolveTimeHours: resolveCount > 0 ? Math.round(totalResolveHours / resolveCount * 10) / 10 : null,
         completionRate,
+      },
+      satisfaction: {
+        totalResponses: deptRatings.length,
+        avgSystemRating: avgSystem,
+        avgOfficerRating: avgOfficer,
       },
       dailyCounts,
       statusBreakdown,
@@ -252,6 +266,25 @@ dashboardApi.get('/executive', authDashboard, async (req: any, res) => {
       };
     });
 
+    // Satisfaction ratings ภาพรวม
+    const allRatings = await db.select().from(schema.satisfactionRatings);
+    const avgSystem = allRatings.length > 0
+      ? Math.round(allRatings.reduce((s, r) => s + (r.systemRating || 0), 0) / allRatings.length * 10) / 10 : null;
+    const avgOfficer = allRatings.length > 0
+      ? Math.round(allRatings.reduce((s, r) => s + (r.officerRating || 0), 0) / allRatings.length * 10) / 10 : null;
+
+    // Satisfaction แยกรายกอง
+    const deptSatisfaction = allDepts.map(d => {
+      const deptComplaintIds = new Set(allComplaints.filter(c => c.departmentId === d.id).map(c => c.id));
+      const deptRatings = allRatings.filter(r => deptComplaintIds.has(r.complaintId));
+      return {
+        departmentName: d.name,
+        responses: deptRatings.length,
+        avgSystem: deptRatings.length > 0 ? Math.round(deptRatings.reduce((s, r) => s + (r.systemRating || 0), 0) / deptRatings.length * 10) / 10 : null,
+        avgOfficer: deptRatings.length > 0 ? Math.round(deptRatings.reduce((s, r) => s + (r.officerRating || 0), 0) / deptRatings.length * 10) / 10 : null,
+      };
+    });
+
     res.json({
       overall: {
         totalComplaints,
@@ -259,6 +292,12 @@ dashboardApi.get('/executive', authDashboard, async (req: any, res) => {
         totalToday,
         completionRate,
         avgResolveTimeHours: resolveCount > 0 ? Math.round(totalResolveHours / resolveCount * 10) / 10 : null,
+      },
+      satisfaction: {
+        totalResponses: allRatings.length,
+        avgSystemRating: avgSystem,
+        avgOfficerRating: avgOfficer,
+        byDepartment: deptSatisfaction,
       },
       departmentSummary,
       dailyTrend,

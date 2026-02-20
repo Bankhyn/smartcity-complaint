@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>เจ้าหน้าที่ — เทศบาลตำบลพลับพลานารายณ์</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Noto+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #D97706;
+      --primary-dark: #92400E;
+      --primary-light: #F59E0B;
+      --primary-bg: #FFFBEB;
+      --blue: #3B82F6;
+      --blue-bg: #EFF6FF;
+      --cyan: #06B6D4;
+      --cyan-bg: #ECFEFF;
+      --green: #10B981;
+      --green-bg: #ECFDF5;
+      --orange: #F59E0B;
+      --orange-bg: #FFFBEB;
+      --red: #EF4444;
+      --red-bg: #FEF2F2;
+      --purple: #8B5CF6;
+      --purple-bg: #F5F3FF;
+
+      --bg: #F1F5F9;
+      --surface: #FFFFFF;
+      --surface-2: #F8FAFC;
+      --surface-3: #E2E8F0;
+      --text: #0F172A;
+      --text-2: #334155;
+      --text-muted: #64748B;
+      --text-dim: #94A3B8;
+      --border: rgba(0,0,0,0.06);
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+
+      --font: 'Plus Jakarta Sans', 'Noto Sans Thai', sans-serif;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    html.dark {
+      --primary-bg: #1C1508;
+      --blue-bg: #0C1A3D;
+      --cyan-bg: #0A1E22;
+      --green-bg: #0A1F17;
+      --orange-bg: #1A1508;
+      --red-bg: #1A0808;
+      --purple-bg: #15102B;
+      --bg: #0B1222;
+      --surface: #111B2E;
+      --surface-2: #162032;
+      --surface-3: #1E2D45;
+      --text: #E2E8F0;
+      --text-2: #CBD5E1;
+      --text-muted: #64748B;
+      --text-dim: #475569;
+      --border: rgba(255,255,255,0.06);
+      --shadow: none;
+      --shadow-lg: none;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* ===== APP SHELL ===== */
+    .app { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+    .app-content { flex: 1; padding-bottom: 72px; }
+    .view { display: none; animation: fadeIn 300ms var(--ease); }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ===== HEADER ===== */
+    .header {
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      padding: 1rem 1.25rem;
+      padding-top: max(1rem, env(safe-area-inset-top));
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 50px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 430 50'%3E%3Cpath d='M0 50 L0 30 Q60 18 120 28 Q180 38 240 22 Q300 8 360 20 L430 15 L430 50Z' fill='rgba(255,255,255,0.06)'/%3E%3C/svg%3E") no-repeat;
+      background-size: cover;
+    }
+    .header-top { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
+    .header-brand { display: flex; align-items: center; gap: 0.6rem; }
+    .header-logo {
+      width: 40px; height: 40px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(8px);
+      font-size: 1.1rem;
+    }
+    .header-info h1 { font-size: 0.9rem; font-weight: 800; letter-spacing: -0.01em; }
+    .header-info p { font-size: 0.65rem; opacity: 0.75; margin-top: 1px; }
+    .header-actions { display: flex; gap: 0.4rem; }
+    .header-btn {
+      width: 36px; height: 36px; border-radius: 10px; border: none;
+      background: rgba(255,255,255,0.12); backdrop-filter: blur(8px);
+      color: white; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 200ms; position: relative;
+    }
+    .header-btn:active { transform: scale(0.92); }
+    .header-btn svg { width: 18px; height: 18px; }
+
+    /* ===== STATUS BAR ===== */
+    .status-bar {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-top: 0.6rem; position: relative; z-index: 1;
+      font-size: 0.7rem; opacity: 0.9;
+    }
+    .status-item { display: flex; align-items: center; gap: 0.25rem; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #34D399; }
+
+    /* ===== BOTTOM NAV ===== */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 430px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding-bottom: max(0.3rem, env(safe-area-inset-bottom));
+      z-index: 100;
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 0.5rem 0 0.3rem; gap: 0.15rem;
+      cursor: pointer; color: var(--text-muted); border: none; background: none;
+      font-family: var(--font); font-size: 0.6rem; font-weight: 500;
+      transition: all 200ms; position: relative;
+    }
+    .nav-item svg { width: 22px; height: 22px; transition: all 200ms; }
+    .nav-item.active { color: var(--primary); }
+    .nav-item.active svg { stroke-width: 2.5; }
+    .nav-item.active::after {
+      content: ''; position: absolute; top: 0; left: 25%; right: 25%;
+      height: 2px; background: var(--primary); border-radius: 2px;
+    }
+    .nav-badge {
+      position: absolute; top: 2px; right: 50%; transform: translateX(14px);
+      min-width: 18px; height: 18px; border-radius: 9px;
+      background: var(--red); color: #fff; font-size: 0.6rem;
+      font-weight: 700; display: flex; align-items: center; justify-content: center;
+      padding: 0 4px; line-height: 1;
+    }
+    .nav-badge:empty { display: none; }
+
+    /* ===== SECTION ===== */
+    .section-pad { padding: 1rem 1.25rem; }
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1.25rem 0.5rem;
+    }
+    .section-title { font-size: 0.9rem; font-weight: 700; }
+    .section-action { font-size: 0.72rem; color: var(--primary); font-weight: 600; cursor: pointer; background: none; border: none; font-family: var(--font); }
+
+    /* ===== SEARCH BAR ===== */
+    .search-bar {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 0 1rem; margin: 0 1.25rem 0.75rem;
+    }
+    .search-bar svg { width: 18px; height: 18px; color: var(--text-dim); flex-shrink: 0; }
+    .search-bar input {
+      flex: 1; border: none; background: none; padding: 0.7rem 0;
+      font-family: var(--font); font-size: 0.82rem; color: var(--text);
+      outline: none;
+    }
+    .search-bar input::placeholder { color: var(--text-dim); }
+
+    /* ===== FILTER CHIPS ===== */
+    .filter-chips {
+      display: flex; gap: 0.4rem; padding: 0 1.25rem; margin-bottom: 0.75rem;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .filter-chips::-webkit-scrollbar { display: none; }
+    .chip {
+      white-space: nowrap; padding: 0.4rem 0.85rem;
+      border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-muted); cursor: pointer; transition: all 150ms;
+      font-family: var(--font);
+    }
+    .chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    /* ===== TASK CARD ===== */
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem;
+      margin: 0 1.25rem 0.65rem;
+      transition: all 200ms var(--ease);
+      cursor: pointer;
+      position: relative;
+    }
+    .task-card:active { transform: scale(0.98); }
+    .task-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.5rem; }
+    .task-ref { font-size: 0.72rem; font-weight: 700; color: var(--primary); }
+    .task-time { font-size: 0.65rem; color: var(--text-dim); }
+    .task-issue { font-size: 0.85rem; font-weight: 600; line-height: 1.4; margin-bottom: 0.4rem; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.72rem; color: var(--text-muted); }
+    .task-meta-item { display: flex; align-items: center; gap: 0.2rem; }
+    .task-meta-item svg { width: 13px; height: 13px; }
+
+    .status-tag {
+      display: inline-flex; align-items: center; gap: 0.2rem;
+      padding: 0.2rem 0.55rem; border-radius: 6px;
+      font-size: 0.65rem; font-weight: 600;
+    }
+    .status-tag.pending { background: var(--orange-bg); color: #B45309; }
+    .status-tag.accepted { background: var(--blue-bg); color: #1D4ED8; }
+    .status-tag.dispatched { background: var(--purple-bg); color: #6D28D9; }
+    .status-tag.completed { background: var(--green-bg); color: #047857; }
+    .status-tag.waiting { background: var(--orange-bg); color: #B45309; }
+    .status-tag.failed { background: var(--red-bg); color: #B91C1C; }
+    .status-tag.transferred { background: var(--cyan-bg); color: #0E7490; }
+    .status-tag.rejected { background: var(--red-bg); color: #B91C1C; }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      text-align: center; padding: 3rem 2rem;
+      color: var(--text-muted);
+    }
+    .empty-state-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .empty-state-text { font-size: 0.85rem; font-weight: 500; }
+    .empty-state-sub { font-size: 0.72rem; margin-top: 0.3rem; color: var(--text-dim); }
+
+    /* ===== SLIDE-UP PANEL ===== */
+    .panel-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 200; opacity: 0; visibility: hidden;
+      transition: all 300ms;
+    }
+    .panel-overlay.active { opacity: 1; visibility: visible; }
+    .panel {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
+      width: 100%; max-width: 430px; max-height: 92vh;
+      background: var(--surface); border-radius: 20px 20px 0 0;
+      z-index: 201; overflow-y: auto;
+      transition: transform 400ms var(--ease);
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+    .panel-overlay.active .panel { transform: translateX(-50%) translateY(0); }
+    .panel-handle {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: var(--surface-3); margin: 0.75rem auto 0;
+    }
+    .panel-header {
+      padding: 0.75rem 1.25rem 0.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title { font-size: 1rem; font-weight: 700; }
+    .panel-close {
+      width: 32px; height: 32px; border-radius: 8px; border: none;
+      background: var(--surface-2); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text-muted); transition: all 150ms;
+    }
+    .panel-close:active { transform: scale(0.92); }
+    .panel-close svg { width: 18px; height: 18px; }
+    .panel-body { padding: 1rem 1.25rem; }
+
+    /* ===== DETAIL ROWS ===== */
+    .detail-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 0.6rem 0.75rem; }
+    .detail-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+    .detail-value { font-size: 0.82rem; font-weight: 600; }
+    .detail-photo {
+      width: 100%; max-height: 220px; object-fit: cover;
+      border-radius: 10px; margin-top: 0.75rem;
+    }
+
+    /* ===== FORM ===== */
+    .form-group { margin-bottom: 1rem; }
+    .form-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-2); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 0.7rem 0.85rem;
+      border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface-2); color: var(--text);
+      font-family: var(--font); font-size: 0.85rem;
+      transition: border-color 200ms;
+      outline: none;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+    }
+    .form-textarea { resize: vertical; min-height: 80px; }
+    .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+    .form-hint { font-size: 0.68rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      width: 100%; padding: 0.85rem;
+      border: none; border-radius: 12px;
+      font-family: var(--font); font-size: 0.88rem; font-weight: 700;
+      cursor: pointer; transition: all 200ms;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn svg { width: 18px; height: 18px; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-green { background: var(--green); color: white; }
+    .btn-blue { background: var(--blue); color: white; }
+    .btn-red { background: var(--red); color: white; }
+    .btn-outline {
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-sm { padding: 0.55rem 0.85rem; font-size: 0.78rem; width: auto; border-radius: 8px; }
+    .btn-row { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .btn-row .btn { flex: 1; }
+
+    /* ===== RADIO GROUP ===== */
+    .radio-group { display: flex; gap: 0.5rem; }
+    .radio-card {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+      padding: 0.75rem 0.5rem; border: 2px solid var(--border); border-radius: 12px;
+      cursor: pointer; transition: all 200ms; text-align: center;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .radio-card input { display: none; }
+    .radio-card .rc-icon { font-size: 1.3rem; }
+    .radio-card.green:has(input:checked) { border-color: var(--green); background: var(--green-bg); color: #047857; }
+    .radio-card.orange:has(input:checked) { border-color: var(--orange); background: var(--orange-bg); color: #B45309; }
+    .radio-card.red:has(input:checked) { border-color: var(--red); background: var(--red-bg); color: #B91C1C; }
+
+    /* ===== PHOTO UPLOAD ===== */
+    .photo-upload {
+      border: 2px dashed var(--border); border-radius: 12px;
+      padding: 1.25rem; text-align: center; cursor: pointer;
+      transition: all 200ms; color: var(--text-muted);
+    }
+    .photo-upload:hover { border-color: var(--primary); color: var(--primary); }
+    .photo-upload svg { width: 32px; height: 32px; margin-bottom: 0.4rem; }
+    .photo-upload p { font-size: 0.75rem; font-weight: 500; }
+    .photo-preview { position: relative; margin-top: 0.5rem; }
+    .photo-preview img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; }
+    .photo-preview .remove-photo {
+      position: absolute; top: 8px; right: 8px;
+      width: 28px; height: 28px; border-radius: 14px;
+      background: rgba(0,0,0,0.6); color: white; border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+
+    /* ===== CHECKBOX CARD (dispatch) ===== */
+    .check-card {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1rem; margin: 0 1.25rem 0.65rem;
+      transition: all 200ms;
+    }
+    .check-card:has(input:checked) { border-color: var(--primary); background: var(--primary-bg); }
+    .check-card input[type="checkbox"] {
+      width: 22px; height: 22px; flex-shrink: 0; margin-top: 2px;
+      accent-color: var(--primary); cursor: pointer;
+    }
+
+    /* ===== KPI GRID ===== */
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; padding: 0 1.25rem; margin-bottom: 1rem; }
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 0.85rem 0.65rem; text-align: center;
+    }
+    .kpi-number { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+    .kpi-label { font-size: 0.62rem; color: var(--text-muted); margin-top: 0.3rem; font-weight: 500; }
+    .kpi-card.pending .kpi-number { color: var(--orange); }
+    .kpi-card.accepted .kpi-number { color: var(--blue); }
+    .kpi-card.dispatched .kpi-number { color: var(--purple); }
+    .kpi-card.completed .kpi-number { color: var(--green); }
+    .kpi-card.waiting .kpi-number { color: var(--orange); }
+    .kpi-card.failed .kpi-number { color: var(--red); }
+
+    /* ===== CHART CARD ===== */
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1rem; margin: 0 1.25rem 0.75rem;
+      min-width: 0; overflow: hidden;
+    }
+    .chart-card canvas { max-width: 100%; }
+    .chart-title { font-size: 0.82rem; font-weight: 700; margin-bottom: 0.75rem; }
+
+    /* ===== WORKLOAD TABLE ===== */
+    .wl-table { width: 100%; font-size: 0.72rem; border-collapse: collapse; }
+    .wl-table th { font-weight: 600; color: var(--text-muted); text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border); }
+    .wl-table td { padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border); }
+
+    /* ===== PROFILE ===== */
+    .profile-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem; margin: 0 1.25rem 0.75rem;
+      text-align: center;
+    }
+    .profile-avatar {
+      width: 72px; height: 72px; border-radius: 20px;
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 0.75rem; font-size: 1.8rem; color: white;
+    }
+    .profile-name { font-size: 1.1rem; font-weight: 800; }
+    .profile-position { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem; }
+    .profile-dept { font-size: 0.72rem; color: var(--primary); font-weight: 600; margin-top: 0.4rem; }
+    .profile-info-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-top: 1.25rem; text-align: left;
+    }
+    .profile-info-item { }
+    .profile-info-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+    .profile-info-value { font-size: 0.82rem; font-weight: 600; margin-top: 0.15rem; }
+
+    /* ===== LOADING ===== */
+    .loading-screen {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; min-height: 100dvh; gap: 1rem;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--surface-3);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 800ms linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 0.82rem; color: var(--text-muted); }
+
+    /* ===== AUTH ERROR ===== */
+    .auth-error {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 2rem; text-align: center;
+    }
+    .auth-error-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .auth-error-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .auth-error-msg { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* ===== DATE FILTER ===== */
+    .date-filter {
+      display: flex; gap: 0.4rem; align-items: center;
+      padding: 0 1.25rem; margin-bottom: 0.75rem;
+    }
+    .date-filter input[type="date"] {
+      flex: 1; padding: 0.55rem 0.65rem;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); color: var(--text);
+      font-family: var(--font); font-size: 0.75rem;
+    }
+    .date-filter span { font-size: 0.75rem; color: var(--text-dim); }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-120%);
+      max-width: 380px; width: calc(100% - 2.5rem);
+      padding: 0.85rem 1.1rem; border-radius: 12px;
+      font-size: 0.82rem; font-weight: 600;
+      z-index: 300; transition: transform 400ms var(--ease);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { background: #065F46; color: #D1FAE5; }
+    .toast.error { background: #991B1B; color: #FEE2E2; }
+  </style>
+</head>
+<body>
+  <!-- LOADING -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="spinner"></div>
+    <div class="loading-text">กำลังตรวจสอบสิทธิ์...</div>
+  </div>
+
+  <!-- AUTH ERROR -->
+  <div id="authError" class="auth-error" style="display:none;">
+    <div class="auth-error-icon">🔒</div>
+    <div class="auth-error-title">ไม่สามารถเข้าใช้งานได้</div>
+    <div class="auth-error-msg" id="authErrorMsg">ลิงก์หมดอายุ กรุณาพิมพ์ /ppnr ใหม่ในกลุ่มไลน์</div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="mainApp" class="app" style="display:none;">
+    <header class="header">
+      <div class="header-top">
+        <div class="header-brand">
+          <div class="header-logo"><img src="logo-ppnr.png" alt="โลโก้" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+          <div class="header-info">
+            <h1 id="headerName">เจ้าหน้าที่</h1>
+            <p id="headerDept">เทศบาลตำบลพลับพลานารายณ์</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" onclick="toggleDarkMode()">
+            <i data-lucide="moon"></i>
+          </button>
+          <button class="header-btn" onclick="refreshData()">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+        </div>
+      </div>
+      <div class="status-bar">
+        <div class="status-item"><span class="status-dot"></span> ออนไลน์</div>
+        <div class="status-item" id="headerDate"></div>
+      </div>
+    </header>
+
+    <main class="app-content">
+      <!-- ===== TAB 1: INBOX (งานใหม่) ===== -->
+      <div id="viewInbox" class="view active">
+        <div class="section-header">
+          <span class="section-title">คำร้องรอรับเรื่อง</span>
+          <span class="section-action" id="inboxCount"></span>
+        </div>
+        <div class="search-bar">
+          <i data-lucide="search"></i>
+          <input type="text" placeholder="ค้นหา เลขที่ / ปัญหา..." id="inboxSearch" oninput="filterInbox()">
+        </div>
+        <div id="inboxList"></div>
+      </div>
+
+      <!-- ===== TAB 2: MY TASKS (งานของฉัน) ===== -->
+      <div id="viewTasks" class="view">
+        <div class="section-header">
+          <span class="section-title">งานของฉัน</span>
+          <span class="section-action" id="tasksCount"></span>
+        </div>
+        <div class="filter-chips" id="taskFilterChips">
+          <button class="chip active" onclick="filterTasks('all')">ทั้งหมด</button>
+          <button class="chip" onclick="filterTasks('accepted')">รับเรื่องแล้ว</button>
+          <button class="chip" onclick="filterTasks('dispatched')">ปฏิบัติงาน</button>
+          <button class="chip" onclick="filterTasks('waiting')">รอดำเนินการ</button>
+          <button class="chip" onclick="filterTasks('completed')">สำเร็จ</button>
+        </div>
+        <div class="search-bar">
+          <i data-lucide="search"></i>
+          <input type="text" placeholder="ค้นหา เลขที่ / ปัญหา..." id="taskSearch" oninput="filterMyTasks()">
+        </div>
+        <div id="tasksList"></div>
+      </div>
+
+      <!-- ===== TAB 3: DASHBOARD ===== -->
+      <div id="viewDashboard" class="view">
+        <div class="section-header">
+          <span class="section-title" id="dashTitle">Dashboard กอง</span>
+        </div>
+        <div class="date-filter">
+          <input type="date" id="dateFrom">
+          <span>—</span>
+          <input type="date" id="dateTo">
+          <button class="btn btn-sm btn-primary" onclick="loadDashboard()">กรอง</button>
+        </div>
+        <div id="kpiSection"></div>
+        <div id="perfSection" style="padding:0 1.25rem;margin-bottom:0.75rem;"></div>
+        <div class="chart-card" id="dailyChartCard" style="margin:0 1.25rem 0.75rem;">
+          <div class="chart-title">คำร้องรายวัน (30 วัน)</div>
+          <canvas id="dailyChart"></canvas>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;padding:0 1.25rem;margin-bottom:0.75rem;">
+          <div class="chart-card" style="margin:0;">
+            <div class="chart-title">สถานะ</div>
+            <canvas id="statusChart"></canvas>
+          </div>
+          <div class="chart-card" style="margin:0;">
+            <div class="chart-title">หมวด</div>
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card" style="margin:0 1.25rem 0.75rem;">
+          <div class="chart-title">ผลงานเจ้าหน้าที่</div>
+          <table class="wl-table" id="workloadTable"></table>
+        </div>
+      </div>
+
+      <!-- ===== TAB 4: PROFILE ===== -->
+      <div id="viewProfile" class="view">
+        <div class="section-header">
+          <span class="section-title">โปรไฟล์</span>
+        </div>
+        <div id="profileContent"></div>
+      </div>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" onclick="switchTab('inbox')" data-tab="inbox">
+        <i data-lucide="inbox"></i>
+        <span>งานใหม่</span>
+        <span class="nav-badge" id="inboxBadge"></span>
+      </button>
+      <button class="nav-item" onclick="switchTab('tasks')" data-tab="tasks">
+        <i data-lucide="clipboard-list"></i>
+        <span>งานของฉัน</span>
+      </button>
+      <button class="nav-item" onclick="switchTab('dashboard')" data-tab="dashboard">
+        <i data-lucide="bar-chart-3"></i>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" onclick="switchTab('profile')" data-tab="profile">
+        <i data-lucide="user-circle"></i>
+        <span>โปรไฟล์</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div class="panel-overlay" id="detailPanel">
+    <div class="panel" id="detailPanelInner">
+      <div class="panel-handle"></div>
+      <div class="panel-header">
+        <span class="panel-title" id="panelTitle">รายละเอียด</span>
+        <button class="panel-close" onclick="closePanel()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="panel-body" id="panelBody"></div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ===== STATE =====
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('t') || '';
+    const urlAction = urlParams.get('action') || '';
+    const urlRef = urlParams.get('ref') || '';
+    const H = { 'ngrok-skip-browser-warning': '1' };
+    let officerId = null;
+    let lineUserId = '';
+    let officerData = null;
+    let departmentData = null;
+    let departments = [];
+    let inboxTasks = [];
+    let myTasks = [];
+    let currentTab = 'inbox';
+    let taskFilter = 'all';
+    let chartInstances = {};
+
+    const STATUS_LABELS = {
+      pending: 'รอรับเรื่อง', accepted: 'รับเรื่องแล้ว', dispatched: 'ออกปฏิบัติงาน',
+      completed: 'สำเร็จ', waiting: 'รอดำเนินการ', failed: 'ไม่สำเร็จ',
+      transferred: 'โอนกอง', rejected: 'ปฏิเสธ'
+    };
+
+    // ===== INIT =====
+    async function init() {
+      // Dark mode
+      if (localStorage.getItem('officer-dark') === 'true') document.documentElement.classList.add('dark');
+
+      // Date display
+      const now = new Date();
+      document.getElementById('headerDate').textContent = now.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: '2-digit' });
+
+      try {
+        let authOk = false;
+
+        // === Strategy 1: LIFF SDK (เปิดจาก LINE app / Flex Message) ===
+        if (window.liff) {
+          try {
+            // Fetch LIFF ID from server config
+            const cfgRes = await fetch('/api/config', { headers: H });
+            const cfg = await cfgRes.json();
+            const liffId = cfg.liffIdOfficer;
+
+            if (liffId) {
+              await liff.init({ liffId });
+
+              if (liff.isLoggedIn()) {
+                const profile = await liff.getProfile();
+                lineUserId = profile.userId;
+
+                // Lookup officer by LINE user ID
+                const offRes = await fetch(`/api/officers/${lineUserId}`, { headers: H });
+                if (offRes.ok) {
+                  officerData = await offRes.json();
+                  officerId = officerData.id;
+                  authOk = true;
+                }
+              } else if (liff.isInClient()) {
+                liff.login();
+                return;
+              }
+            }
+          } catch (liffErr) {
+            console.warn('[LIFF] init failed, fallback to token:', liffErr);
+          }
+        }
+
+        // === Strategy 2: Token auth (จาก /ppnr หรือ external browser) ===
+        if (!authOk && token) {
+          const authRes = await fetch(`/api/auth/verify?token=${token}`, { headers: H });
+          const auth = await authRes.json();
+          if (!auth.success) throw new Error(auth.error || 'Token ไม่ถูกต้อง');
+          if (!auth.officerId) throw new Error('กรุณาลงทะเบียนเจ้าหน้าที่ก่อน — พิมพ์ /ppnr ในกลุ่ม');
+
+          officerId = auth.officerId;
+          lineUserId = auth.lineUserId;
+
+          const offRes = await fetch(`/api/officers/by-id/${officerId}`, { headers: H });
+          if (!offRes.ok) throw new Error('ไม่พบข้อมูลเจ้าหน้าที่');
+          officerData = await offRes.json();
+          authOk = true;
+        }
+
+        if (!authOk) {
+          throw new Error('กรุณาเปิดจาก LINE หรือใช้ลิงก์จาก /ppnr');
+        }
+
+        // Load departments
+        const deptRes = await fetch('/api/officers/departments/list', { headers: H });
+        departments = await deptRes.json();
+        departmentData = departments.find(d => d.id === officerData.departmentId);
+
+        // Update header
+        document.getElementById('headerName').textContent = officerData.name;
+        document.getElementById('headerDept').textContent = departmentData?.name || 'เทศบาลตำบลพลับพลานารายณ์';
+
+        // Show app
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = '';
+        lucide.createIcons();
+
+        // Load data
+        await Promise.all([loadInbox(), loadMyTasks()]);
+        renderProfile();
+
+        // === Handle URL action (จากปุ่ม Flex Message) ===
+        if (urlAction === 'accept' && urlRef) {
+          setTimeout(() => {
+            const task = inboxTasks.find(t => t.refId === urlRef);
+            if (task) {
+              openAcceptPanel(urlRef);
+            } else {
+              showToast(`ไม่พบคำร้อง ${urlRef} หรือถูกรับเรื่องไปแล้ว`, 'error');
+            }
+          }, 300);
+        }
+
+      } catch (err) {
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('authErrorMsg').textContent = err.message;
+        document.getElementById('authError').style.display = '';
+      }
+    }
+
+    // ===== TAB NAVIGATION =====
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      const viewMap = { inbox: 'viewInbox', tasks: 'viewTasks', dashboard: 'viewDashboard', profile: 'viewProfile' };
+      document.getElementById(viewMap[tab]).classList.add('active');
+
+      if (tab === 'dashboard' && !chartInstances.daily) loadDashboard();
+    }
+
+    // ===== DARK MODE =====
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('officer-dark', isDark);
+    }
+
+    // ===== REFRESH =====
+    async function refreshData() {
+      showToast('กำลังรีเฟรช...', 'success');
+      await Promise.all([loadInbox(), loadMyTasks()]);
+      if (currentTab === 'dashboard') loadDashboard();
+    }
+
+    // ===== TOAST =====
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `toast ${type} show`;
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // ===== LOAD INBOX =====
+    async function loadInbox() {
+      try {
+        const res = await fetch(`/api/tasks/pending-accept/${officerId}`, { headers: H });
+        inboxTasks = await res.json();
+        document.getElementById('inboxCount').textContent = `${inboxTasks.length} เรื่อง`;
+        document.getElementById('inboxBadge').textContent = inboxTasks.length > 0 ? inboxTasks.length : '';
+        renderInbox(inboxTasks);
+      } catch (e) {
+        document.getElementById('inboxList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">ไม่สามารถโหลดข้อมูลได้</div></div>';
+      }
+    }
+
+    function renderInbox(tasks) {
+      const el = document.getElementById('inboxList');
+      if (tasks.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎉</div><div class="empty-state-text">ไม่มีคำร้องรอรับเรื่อง</div><div class="empty-state-sub">คำร้องใหม่จะแสดงที่นี่</div></div>';
+        return;
+      }
+      el.innerHTML = tasks.map(t => {
+        const date = new Date(t.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        return `
+        <div class="task-card" onclick="openAcceptPanel('${t.refId}')">
+          <div class="task-card-header">
+            <span class="task-ref">${t.refId}</span>
+            <span class="task-time">${date}</span>
+          </div>
+          <div class="task-issue">${escHtml(t.issue)}</div>
+          <div class="task-meta">
+            <span class="task-meta-item"><i data-lucide="map-pin"></i> ${escHtml(t.location || 'ไม่ระบุ')}</span>
+            <span class="task-meta-item"><i data-lucide="user"></i> ${escHtml(t.contactName || '-')}</span>
+            ${t.contactPhone ? `<span class="task-meta-item"><i data-lucide="phone"></i> ${t.contactPhone}</span>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function filterInbox() {
+      const q = document.getElementById('inboxSearch').value.toLowerCase();
+      const filtered = inboxTasks.filter(t => t.refId.toLowerCase().includes(q) || t.issue.toLowerCase().includes(q) || (t.contactName || '').toLowerCase().includes(q));
+      renderInbox(filtered);
+    }
+
+    // ===== ACCEPT PANEL =====
+    async function openAcceptPanel(refId) {
+      const task = inboxTasks.find(t => t.refId === refId);
+      if (!task) return;
+
+      document.getElementById('panelTitle').textContent = `รับเรื่อง — ${refId}`;
+
+      // Get officers in department
+      let officerOptions = '<option value="">-- ยังไม่มอบหมาย --</option>';
+      try {
+        const res = await fetch(`/api/officers/by-department/${officerData.departmentId}`, { headers: H });
+        const officers = await res.json();
+        officerOptions += officers.map(o => `<option value="${o.id}">${o.name}${o.position ? ' ('+o.position+')' : ''}</option>`).join('');
+      } catch(e) {}
+
+      const date = new Date(task.createdAt).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const today = new Date().toISOString().slice(0, 10);
+
+      document.getElementById('panelBody').innerHTML = `
+        <div class="detail-grid">
+          <div class="detail-label">ปัญหา</div>
+          <div class="detail-value">${escHtml(task.issue)}</div>
+          <div class="detail-label">หมวด</div>
+          <div class="detail-value">${escHtml(task.category || '-')}</div>
+          <div class="detail-label">สถานที่</div>
+          <div class="detail-value">${escHtml(task.location || '-')}</div>
+          <div class="detail-label">ผู้แจ้ง</div>
+          <div class="detail-value">${escHtml(task.contactName || '-')}</div>
+          <div class="detail-label">เบอร์โทร</div>
+          <div class="detail-value">${task.contactPhone || '-'}</div>
+          <div class="detail-label">วันที่แจ้ง</div>
+          <div class="detail-value">${date}</div>
+        </div>
+        ${task.photoUrl ? `<img class="detail-photo" src="${task.photoUrl}" alt="รูปประกอบ" onerror="this.style.display='none'">` : ''}
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0;">
+
+        <div class="form-group">
+          <label class="form-label">มอบหมายเจ้าหน้าที่</label>
+          <select class="form-select" id="acceptOfficer">${officerOptions}</select>
+          <div class="form-hint">ไม่บังคับ — สามารถมอบหมายทีหลังได้</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">กำหนดวันปฏิบัติงาน</label>
+          <input type="date" class="form-input" id="acceptDate" value="${today}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">หมายเหตุ</label>
+          <textarea class="form-textarea" id="acceptNote" placeholder="เช่น ให้ช่างไฟไปดู, ต้องประสานงาน..."></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="closePanel()">ยกเลิก</button>
+          <button class="btn btn-green" id="acceptBtn" onclick="doAccept('${refId}')">
+            <i data-lucide="check"></i> รับเรื่อง
+          </button>
+        </div>
+      `;
+      openPanel();
+    }
+
+    async function doAccept(refId) {
+      const btn = document.getElementById('acceptBtn');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div> กำลังรับ...';
+
+      try {
+        const body = {
+          refId,
+          acceptedBy: lineUserId,
+          assignedOfficerId: document.getElementById('acceptOfficer').value ? Number(document.getElementById('acceptOfficer').value) : undefined,
+          scheduledDate: document.getElementById('acceptDate').value || undefined,
+          acceptNote: document.getElementById('acceptNote').value || undefined,
+        };
+        const res = await fetch('/api/tasks/accept', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...H },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (data.success) {
+          closePanel();
+          showToast(`รับเรื่อง ${refId} เรียบร้อย`);
+          await Promise.all([loadInbox(), loadMyTasks()]);
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+          btn.disabled = false; btn.innerHTML = '<i data-lucide="check"></i> รับเรื่อง';
+          lucide.createIcons();
+        }
+      } catch (e) {
+        showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
+        btn.disabled = false; btn.innerHTML = '<i data-lucide="check"></i> รับเรื่อง'; lucide.createIcons();
+      }
+    }
+
+    // ===== LOAD MY TASKS =====
+    async function loadMyTasks() {
+      try {
+        // Load accepted (pending dispatch) + dispatched + waiting
+        const [pendRes, dispRes] = await Promise.all([
+          fetch(`/api/tasks/pending/${officerId}`, { headers: H }),
+          fetch(`/api/tasks/dispatched/${officerId}`, { headers: H }),
+        ]);
+        const pending = await pendRes.json();
+        const dispatched = await dispRes.json();
+
+        // Tag source
+        myTasks = [
+          ...pending.map(t => ({ ...t, _group: 'accepted' })),
+          ...dispatched.map(t => ({ ...t, _group: t.status })),
+        ];
+
+        document.getElementById('tasksCount').textContent = `${myTasks.length} งาน`;
+        renderMyTasks();
+      } catch (e) {
+        document.getElementById('tasksList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">ไม่สามารถโหลดข้อมูลได้</div></div>';
+      }
+    }
+
+    function renderMyTasks() {
+      let tasks = myTasks;
+
+      // Filter
+      if (taskFilter !== 'all') {
+        tasks = tasks.filter(t => t.status === taskFilter || t._group === taskFilter);
+      }
+
+      // Search
+      const q = (document.getElementById('taskSearch')?.value || '').toLowerCase();
+      if (q) {
+        tasks = tasks.filter(t => t.refId.toLowerCase().includes(q) || t.issue.toLowerCase().includes(q));
+      }
+
+      const el = document.getElementById('tasksList');
+      if (tasks.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">ไม่มีงาน' + (taskFilter !== 'all' ? 'ในหมวดนี้' : '') + '</div></div>';
+        return;
+      }
+
+      el.innerHTML = tasks.map(t => {
+        const date = new Date(t.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const canDispatch = t.status === 'accepted';
+        const canClose = t.status === 'dispatched' || t.status === 'waiting';
+        return `
+        <div class="task-card" onclick="${canClose ? `openClosePanel(${t.id},'${t.refId}')` : canDispatch ? `openDispatchPanel(${t.id},'${t.refId}')` : ''}">
+          <div class="task-card-header">
+            <span class="task-ref">${t.refId}</span>
+            <span class="status-tag ${t.status}">${STATUS_LABELS[t.status] || t.status}</span>
+          </div>
+          <div class="task-issue">${escHtml(t.issue)}</div>
+          <div class="task-meta">
+            <span class="task-meta-item"><i data-lucide="map-pin"></i> ${escHtml(t.location || 'ไม่ระบุ')}</span>
+            <span class="task-meta-item"><i data-lucide="clock"></i> ${date}</span>
+          </div>
+          ${canDispatch ? '<div style="margin-top:0.5rem;"><span style="font-size:0.7rem;color:var(--blue);font-weight:600;">แตะเพื่อส่งปฏิบัติงาน →</span></div>' : ''}
+          ${canClose ? '<div style="margin-top:0.5rem;"><span style="font-size:0.7rem;color:var(--green);font-weight:600;">แตะเพื่อบันทึกผล →</span></div>' : ''}
+        </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function filterTasks(filter) {
+      taskFilter = filter;
+      document.querySelectorAll('#taskFilterChips .chip').forEach(c => c.classList.toggle('active', c.textContent.includes(
+        filter === 'all' ? 'ทั้งหมด' :
+        filter === 'accepted' ? 'รับเรื่อง' :
+        filter === 'dispatched' ? 'ปฏิบัติ' :
+        filter === 'waiting' ? 'รอ' : 'สำเร็จ'
+      )));
+      renderMyTasks();
+    }
+
+    function filterMyTasks() { renderMyTasks(); }
+
+    // ===== DISPATCH PANEL =====
+    function openDispatchPanel(complaintId, refId) {
+      document.getElementById('panelTitle').textContent = `ส่งปฏิบัติงาน — ${refId}`;
+      document.getElementById('panelBody').innerHTML = `
+        <div style="text-align:center;padding:1rem 0;">
+          <div style="font-size:2rem;margin-bottom:0.5rem;">🚗</div>
+          <p style="font-size:0.88rem;font-weight:600;">ยืนยันออกปฏิบัติงาน</p>
+          <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;">${refId}</p>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="closePanel()">ยกเลิก</button>
+          <button class="btn btn-blue" id="dispatchBtn" onclick="doDispatch(${complaintId},'${refId}')">
+            <i data-lucide="send"></i> ส่งปฏิบัติงาน
+          </button>
+        </div>
+      `;
+      openPanel();
+    }
+
+    async function doDispatch(complaintId, refId) {
+      const btn = document.getElementById('dispatchBtn');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>';
+
+      try {
+        const res = await fetch('/api/tasks/dispatch', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...H },
+          body: JSON.stringify({ officerId: Number(officerId), complaintIds: [complaintId] }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          closePanel();
+          showToast(`ส่งปฏิบัติงาน ${refId} เรียบร้อย`);
+          await loadMyTasks();
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+          btn.disabled = false; btn.innerHTML = '<i data-lucide="send"></i> ส่งปฏิบัติงาน'; lucide.createIcons();
+        }
+      } catch (e) {
+        showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
+        btn.disabled = false;
+      }
+    }
+
+    // ===== CLOSE PANEL =====
+    let closePhotoBase64 = null;
+
+    function openClosePanel(complaintId, refId) {
+      closePhotoBase64 = null;
+      document.getElementById('panelTitle').textContent = `บันทึกผล — ${refId}`;
+      document.getElementById('panelBody').innerHTML = `
+        <div class="form-group">
+          <label class="form-label">ผลดำเนินงาน</label>
+          <div class="radio-group">
+            <label class="radio-card green">
+              <input type="radio" name="closeStatus" value="completed">
+              <span class="rc-icon">✅</span>
+              <span>สำเร็จ</span>
+            </label>
+            <label class="radio-card orange">
+              <input type="radio" name="closeStatus" value="waiting">
+              <span class="rc-icon">⏳</span>
+              <span>รอดำเนินการ</span>
+            </label>
+            <label class="radio-card red">
+              <input type="radio" name="closeStatus" value="failed">
+              <span class="rc-icon">❌</span>
+              <span>ไม่สำเร็จ</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-group" id="closeNoteGroup" style="display:none;">
+          <label class="form-label" id="closeNoteLabel">หมายเหตุ</label>
+          <textarea class="form-textarea" id="closeNote" placeholder="อธิบายเพิ่มเติม..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">แนบรูปผลงาน</label>
+          <div class="photo-upload" onclick="document.getElementById('closePhotoInput').click()">
+            <i data-lucide="camera"></i>
+            <p>ถ่ายรูป / เลือกรูป</p>
+          </div>
+          <input type="file" id="closePhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="handleClosePhoto(event)">
+          <div class="photo-preview" id="closePhotoPreview"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="closePanel()">ยกเลิก</button>
+          <button class="btn btn-primary" id="closeBtn" onclick="doClose(${complaintId},'${refId}')">
+            <i data-lucide="save"></i> บันทึกผล
+          </button>
+        </div>
+      `;
+
+      // Status change handler
+      setTimeout(() => {
+        document.querySelectorAll('input[name="closeStatus"]').forEach(r => {
+          r.addEventListener('change', (e) => {
+            const ng = document.getElementById('closeNoteGroup');
+            if (e.target.value === 'completed') { ng.style.display = 'none'; }
+            else {
+              ng.style.display = '';
+              document.getElementById('closeNoteLabel').textContent = e.target.value === 'waiting' ? 'สาเหตุที่รอ' : 'สาเหตุที่ไม่สำเร็จ';
+            }
+          });
+        });
+        lucide.createIcons();
+      }, 50);
+
+      openPanel();
+    }
+
+    function handleClosePhoto(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        closePhotoBase64 = ev.target.result;
+        document.getElementById('closePhotoPreview').innerHTML = `
+          <img src="${closePhotoBase64}" alt="รูป">
+          <button class="remove-photo" onclick="removeClosePhoto()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        `;
+        lucide.createIcons();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeClosePhoto() {
+      closePhotoBase64 = null;
+      document.getElementById('closePhotoPreview').innerHTML = '';
+      document.getElementById('closePhotoInput').value = '';
+    }
+
+    async function doClose(complaintId, refId) {
+      const status = document.querySelector('input[name="closeStatus"]:checked')?.value;
+      if (!status) { showToast('กรุณาเลือกผลดำเนินงาน', 'error'); return; }
+
+      const btn = document.getElementById('closeBtn');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div> กำลังบันทึก...';
+
+      // Upload photo
+      let photoUrl;
+      if (closePhotoBase64) {
+        try {
+          const u = await fetch('/api/uploads/image', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', ...H },
+            body: JSON.stringify({ image: closePhotoBase64 }),
+          });
+          const ud = await u.json();
+          if (ud.success) photoUrl = ud.path;
+        } catch (e) { console.error('Upload failed:', e); }
+      }
+
+      try {
+        const note = document.getElementById('closeNote')?.value;
+        const res = await fetch('/api/tasks/close', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...H },
+          body: JSON.stringify({ complaintId, resultStatus: status, note: note || undefined, photoUrl }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          closePanel();
+          const st = status === 'completed' ? 'สำเร็จ' : status === 'waiting' ? 'รอดำเนินการ' : 'ไม่สำเร็จ';
+          showToast(`${refId} → ${st}`);
+          await loadMyTasks();
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+          btn.disabled = false; btn.innerHTML = '<i data-lucide="save"></i> บันทึกผล'; lucide.createIcons();
+        }
+      } catch (e) {
+        showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
+        btn.disabled = false;
+      }
+    }
+
+    // ===== PANEL OPEN/CLOSE =====
+    function openPanel() {
+      document.getElementById('detailPanel').classList.add('active');
+      lucide.createIcons();
+    }
+    function closePanel() {
+      document.getElementById('detailPanel').classList.remove('active');
+    }
+    // Close on overlay click
+    document.getElementById('detailPanel').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('detailPanel')) closePanel();
+    });
+
+    // ===== DASHBOARD =====
+    async function loadDashboard() {
+      try {
+        let url = `/api/dashboard/department?token=${token}`;
+        const from = document.getElementById('dateFrom')?.value;
+        const to = document.getElementById('dateTo')?.value;
+        if (from) url += `&from=${from}`;
+        if (to) url += `&to=${to}`;
+
+        const res = await fetch(url, { headers: H });
+        const data = await res.json();
+        if (data.error) { showToast(data.error, 'error'); return; }
+
+        document.getElementById('dashTitle').textContent = data.department.name;
+        renderDashboard(data);
+      } catch (e) {
+        showToast('ไม่สามารถโหลด Dashboard', 'error');
+      }
+    }
+
+    function renderDashboard(d) {
+      // KPI
+      document.getElementById('kpiSection').innerHTML = `
+        <div class="kpi-grid">
+          <div class="kpi-card pending"><div class="kpi-number">${d.summary.pending}</div><div class="kpi-label">รอรับเรื่อง</div></div>
+          <div class="kpi-card accepted"><div class="kpi-number">${d.summary.accepted}</div><div class="kpi-label">รับเรื่องแล้ว</div></div>
+          <div class="kpi-card dispatched"><div class="kpi-number">${d.summary.dispatched}</div><div class="kpi-label">ปฏิบัติงาน</div></div>
+          <div class="kpi-card completed"><div class="kpi-number">${d.summary.completed}</div><div class="kpi-label">สำเร็จ</div></div>
+          <div class="kpi-card waiting"><div class="kpi-number">${d.summary.waiting}</div><div class="kpi-label">รอดำเนินการ</div></div>
+          <div class="kpi-card failed"><div class="kpi-number">${d.summary.failed}</div><div class="kpi-label">ไม่สำเร็จ</div></div>
+        </div>
+      `;
+
+      // Performance
+      document.getElementById('perfSection').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;">
+          <div class="chart-card" style="margin:0;text-align:center;">
+            <div style="font-size:1.3rem;font-weight:800;color:var(--blue);">${d.performance.avgAcceptTimeHours ?? '-'}</div>
+            <div style="font-size:0.62rem;color:var(--text-muted);">ชม. เฉลี่ยรับเรื่อง</div>
+          </div>
+          <div class="chart-card" style="margin:0;text-align:center;">
+            <div style="font-size:1.3rem;font-weight:800;color:var(--purple);">${d.performance.avgResolveTimeHours ?? '-'}</div>
+            <div style="font-size:0.62rem;color:var(--text-muted);">ชม. เฉลี่ยปิดงาน</div>
+          </div>
+          <div class="chart-card" style="margin:0;text-align:center;">
+            <div style="font-size:1.3rem;font-weight:800;color:var(--green);">${d.performance.completionRate}%</div>
+            <div style="font-size:0.62rem;color:var(--text-muted);">อัตราสำเร็จ</div>
+          </div>
+        </div>
+      `;
+
+      // Charts
+      const STATUS_COLORS = { pending: '#F59E0B', accepted: '#3B82F6', dispatched: '#8B5CF6', completed: '#10B981', waiting: '#F59E0B', failed: '#EF4444' };
+      const chartFont = { family: "'Plus Jakarta Sans', 'Noto Sans Thai', sans-serif" };
+      const isDark = document.documentElement.classList.contains('dark');
+      const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+      const textColor = isDark ? '#94A3B8' : '#64748B';
+
+      // Daily chart
+      if (chartInstances.daily) chartInstances.daily.destroy();
+      chartInstances.daily = new Chart(document.getElementById('dailyChart'), {
+        type: 'line',
+        data: {
+          labels: d.dailyCounts.map(r => r.date.slice(5)),
+          datasets: [{
+            label: 'คำร้อง', data: d.dailyCounts.map(r => r.count),
+            borderColor: '#D97706', backgroundColor: 'rgba(217,119,6,0.1)',
+            fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0,
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { maxTicksLimit: 7, font: { size: 10, ...chartFont }, color: textColor }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10, ...chartFont }, color: textColor }, grid: { color: gridColor } }
+          }
+        }
+      });
+
+      // Status doughnut
+      const statusData = d.statusBreakdown.filter(s => s.count > 0);
+      if (chartInstances.status) chartInstances.status.destroy();
+      chartInstances.status = new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+          labels: statusData.map(s => STATUS_LABELS[s.status] || s.status),
+          datasets: [{ data: statusData.map(s => s.count), backgroundColor: statusData.map(s => STATUS_COLORS[s.status] || '#999') }]
+        },
+        options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 9, ...chartFont }, color: textColor, padding: 6 } } } }
+      });
+
+      // Category bar
+      if (chartInstances.category) chartInstances.category.destroy();
+      chartInstances.category = new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+          labels: d.categoryBreakdown.map(c => c.category.length > 8 ? c.category.slice(0,8)+'..' : c.category),
+          datasets: [{ data: d.categoryBreakdown.map(c => c.count), backgroundColor: '#D97706' }]
+        },
+        options: {
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 9, ...chartFont }, color: textColor }, grid: { color: gridColor } },
+            y: { ticks: { font: { size: 9, ...chartFont }, color: textColor }, grid: { display: false } }
+          }
+        }
+      });
+
+      // Workload table
+      const wt = document.getElementById('workloadTable');
+      wt.innerHTML = `<tr><th>ชื่อ</th><th>ทำ</th><th>สำเร็จ</th><th>รอ</th><th>ไม่สำเร็จ</th></tr>` +
+        (d.officerWorkload.length > 0
+          ? d.officerWorkload.map(o => `<tr><td style="font-weight:600;">${o.name}</td><td>${o.dispatched}</td><td style="color:var(--green);">${o.completed}</td><td>${o.waiting}</td><td style="color:var(--red);">${o.failed}</td></tr>`).join('')
+          : '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1rem;">ยังไม่มีเจ้าหน้าที่</td></tr>');
+    }
+
+    // ===== PROFILE =====
+    function renderProfile() {
+      const dept = departmentData;
+      const o = officerData;
+      const initials = o.name ? o.name.charAt(0) : '?';
+
+      document.getElementById('profileContent').innerHTML = `
+        <div class="profile-card">
+          <div class="profile-avatar">${initials}</div>
+          <div class="profile-name">${escHtml(o.name)}</div>
+          <div class="profile-position">${escHtml(o.position || 'ไม่ระบุตำแหน่ง')}</div>
+          <div class="profile-dept">🏢 ${dept?.name || 'ไม่ระบุกอง'}</div>
+          <div class="profile-info-grid">
+            <div class="profile-info-item">
+              <div class="profile-info-label">เบอร์โทร</div>
+              <div class="profile-info-value">${o.phone || '-'}</div>
+            </div>
+            <div class="profile-info-item">
+              <div class="profile-info-label">สถานะ</div>
+              <div class="profile-info-value" style="color:var(--green);">ใช้งานอยู่</div>
+            </div>
+            <div class="profile-info-item">
+              <div class="profile-info-label">รหัสเจ้าหน้าที่</div>
+              <div class="profile-info-value">#${o.id}</div>
+            </div>
+            <div class="profile-info-item">
+              <div class="profile-info-label">ลงทะเบียนเมื่อ</div>
+              <div class="profile-info-value">${o.createdAt ? new Date(o.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) : '-'}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:0 1.25rem;">
+          <button class="btn btn-outline" style="margin-bottom:0.5rem;" onclick="openEditProfile()">
+            <i data-lucide="edit-3"></i> แก้ไขข้อมูล
+          </button>
+          <button class="btn btn-red" onclick="confirmUnregister()">
+            <i data-lucide="trash-2"></i> ลบทะเบียน
+          </button>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    function openEditProfile() {
+      const o = officerData;
+      const deptOptions = departments.map(d => `<option value="${d.id}" ${d.id === o.departmentId ? 'selected' : ''}>${d.name}</option>`).join('');
+
+      document.getElementById('panelTitle').textContent = 'แก้ไขข้อมูล';
+      document.getElementById('panelBody').innerHTML = `
+        <div class="form-group">
+          <label class="form-label">ชื่อ-นามสกุล *</label>
+          <input type="text" class="form-input" id="editName" value="${escHtml(o.name)}" placeholder="ชื่อ-นามสกุลจริง">
+          <div class="form-hint">ใช้ชื่อจริงสำหรับแจ้งประชาชน</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ตำแหน่ง</label>
+          <input type="text" class="form-input" id="editPosition" value="${escHtml(o.position || '')}" placeholder="เช่น ช่างไฟฟ้า">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เบอร์โทร *</label>
+          <input type="tel" class="form-input" id="editPhone" value="${o.phone || ''}" placeholder="089-xxx-xxxx">
+        </div>
+        <div class="form-group">
+          <label class="form-label">สังกัดกอง *</label>
+          <select class="form-select" id="editDept">${deptOptions}</select>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="closePanel()">ยกเลิก</button>
+          <button class="btn btn-primary" id="editBtn" onclick="doEditProfile()">
+            <i data-lucide="save"></i> บันทึก
+          </button>
+        </div>
+      `;
+      openPanel();
+    }
+
+    async function doEditProfile() {
+      const name = document.getElementById('editName').value.trim();
+      const phone = document.getElementById('editPhone').value.trim();
+      const departmentId = document.getElementById('editDept').value;
+
+      if (!name || name.length < 4) { showToast('กรุณากรอกชื่อ-นามสกุลจริง', 'error'); return; }
+      if (!phone) { showToast('กรุณากรอกเบอร์โทร', 'error'); return; }
+      if (!departmentId) { showToast('กรุณาเลือกกอง', 'error'); return; }
+
+      const btn = document.getElementById('editBtn');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>';
+
+      try {
+        const res = await fetch('/api/officers/register', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...H },
+          body: JSON.stringify({
+            lineUserId,
+            name,
+            position: document.getElementById('editPosition').value.trim(),
+            phone,
+            departmentId,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          // Reload officer data
+          const offRes = await fetch(`/api/officers/by-id/${officerId}`, { headers: H });
+          officerData = await offRes.json();
+          departmentData = departments.find(d => d.id === officerData.departmentId);
+          document.getElementById('headerName').textContent = officerData.name;
+          document.getElementById('headerDept').textContent = departmentData?.name || '';
+          renderProfile();
+          closePanel();
+          showToast('แก้ไขข้อมูลเรียบร้อย');
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+          btn.disabled = false; btn.innerHTML = '<i data-lucide="save"></i> บันทึก'; lucide.createIcons();
+        }
+      } catch (e) {
+        showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
+        btn.disabled = false;
+      }
+    }
+
+    async function confirmUnregister() {
+      document.getElementById('panelTitle').textContent = 'ยืนยันลบทะเบียน';
+      document.getElementById('panelBody').innerHTML = `
+        <div style="text-align:center;padding:1rem 0;">
+          <div style="font-size:2.5rem;margin-bottom:0.75rem;">⚠️</div>
+          <p style="font-size:0.92rem;font-weight:700;">ลบทะเบียนเจ้าหน้าที่?</p>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem;line-height:1.5;">การดำเนินการนี้ไม่สามารถย้อนกลับได้<br>คุณจะไม่สามารถรับงานหรือดู Dashboard ได้อีก</p>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="closePanel()">ยกเลิก</button>
+          <button class="btn btn-red" id="unregBtn" onclick="doUnregister()">
+            <i data-lucide="trash-2"></i> ลบทะเบียน
+          </button>
+        </div>
+      `;
+      openPanel();
+    }
+
+    async function doUnregister() {
+      const btn = document.getElementById('unregBtn');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>';
+
+      try {
+        const res = await fetch('/api/officers/unregister', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...H },
+          body: JSON.stringify({ lineUserId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          closePanel();
+          document.getElementById('mainApp').style.display = 'none';
+          document.getElementById('authErrorMsg').textContent = 'ลบทะเบียนเรียบร้อย — หากต้องการลงทะเบียนใหม่ พิมพ์ /ppnr';
+          document.getElementById('authError').querySelector('.auth-error-icon').textContent = '👋';
+          document.getElementById('authError').querySelector('.auth-error-title').textContent = 'ลบทะเบียนแล้ว';
+          document.getElementById('authError').style.display = '';
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (e) {
+        showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
+      }
+    }
+
+    // ===== UTILS =====
+    function escHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
+
+    // ===== START =====
+    init();
+  </script>
+</body>
+</html>

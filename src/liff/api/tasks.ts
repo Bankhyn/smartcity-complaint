@@ -21,10 +21,11 @@ tasksApi.get('/pending-accept/:officerId', async (req, res) => {
   res.json(tasks);
 });
 
-// GET /api/tasks/dispatched/:officerId
+// GET /api/tasks/dispatched/:officerId — ดึงงานที่ dispatched + waiting (ยังไม่ปิด)
 tasksApi.get('/dispatched/:officerId', async (req, res) => {
-  const tasks = await complaintService.getByOfficer(Number(req.params.officerId), 'dispatched');
-  res.json(tasks);
+  const dispatched = await complaintService.getByOfficer(Number(req.params.officerId), 'dispatched');
+  const waiting = await complaintService.getByOfficer(Number(req.params.officerId), 'waiting');
+  res.json([...dispatched, ...waiting]);
 });
 
 // GET /api/tasks/complaint/:refId — ดึงข้อมูลคำร้องสำหรับหน้ารับเรื่อง
@@ -122,6 +123,17 @@ tasksApi.post('/close', async (req, res) => {
     try {
       await notificationService.notifyResult(updated);
       console.log(`[close] notification sent OK for ${updated.refId}`);
+      // ส่ง survey เฉพาะเมื่อปิดงานจริง (completed/failed) ไม่ส่งตอน waiting
+      if (resultStatus !== 'waiting') {
+        setTimeout(async () => {
+          try {
+            await notificationService.sendSurvey(updated);
+            console.log(`[close] survey sent OK for ${updated.refId}`);
+          } catch (e: any) {
+            console.error(`[close] survey send failed:`, e?.message || e);
+          }
+        }, 2000);
+      }
     } catch (e: any) {
       console.error(`[close] notify citizen failed for ${updated.refId}:`, e?.message || e);
     }

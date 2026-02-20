@@ -101,17 +101,19 @@ export const complaintService = {
   },
 
   async close(complaintId: number, resultStatus: 'completed' | 'waiting' | 'failed', note?: string, photoUrl?: string) {
+    const isClosed = resultStatus === 'completed' || resultStatus === 'failed';
     await db.update(schema.complaints)
       .set({
         status: resultStatus,
         resultStatus,
         resultNote: note,
         resultPhotoUrl: photoUrl,
-        closedAt: new Date().toISOString(),
+        ...(isClosed ? { closedAt: new Date().toISOString() } : {}),
       })
       .where(eq(schema.complaints.id, complaintId));
 
-    await this.logStatus(complaintId, 'dispatched', resultStatus, 'closed', 'officer', null, note);
+    const action = isClosed ? 'closed' : 'updated';
+    await this.logStatus(complaintId, 'dispatched', resultStatus, action, 'officer', null, note);
   },
 
   async getByDepartment(departmentId: number, status?: string) {

@@ -7,7 +7,7 @@ import type { ClassificationResult, DepartmentCode } from '../types/index.js';
 
 const genAI = new GoogleGenerativeAI(env.googleAiApiKey);
 const geminiModel = genAI.getGenerativeModel({
-  model: 'gemini-2.0-flash',
+  model: 'gemini-2.5-flash',
   generationConfig: { responseMimeType: 'application/json' },
 });
 const anthropic = new Anthropic({ apiKey: env.anthropicApiKey });
@@ -51,7 +51,9 @@ ${corrections}
 "${issueText}"
 
 ## ตอบเป็น JSON เท่านั้น:
-{"department": "รหัสกอง", "confidence": 0.0-1.0, "summary": "สรุปสั้น", "category": "หมวด"}`;
+{"department": "รหัสกองภาษาอังกฤษ (secretary|finance|engineering|health|education|strategy)", "confidence": 0.0-1.0, "summary": "สรุปสั้น", "category": "หมวด"}
+
+สำคัญ: department ต้องเป็น 1 ใน 6 ค่านี้เท่านั้น: secretary, finance, engineering, health, education, strategy`;
 
     try {
       // ลอง Gemini ก่อน
@@ -71,10 +73,18 @@ ${corrections}
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]) as ClassificationResult;
+        const result = JSON.parse(jsonMatch[0]) as ClassificationResult;
+        console.log(`[CLASSIFY] "${issueText}" → dept=${result.department}, conf=${result.confidence}, cat=${result.category}`);
+        // validate department code
+        const validCodes = ['secretary', 'finance', 'engineering', 'health', 'education', 'strategy'];
+        if (!validCodes.includes(result.department)) {
+          console.warn(`[CLASSIFY] Invalid dept code "${result.department}", fallback secretary`);
+          result.department = 'secretary';
+        }
+        return result;
       }
     } catch (e) {
-      console.error('AI classification error:', e);
+      console.error('[CLASSIFY] AI classification error:', e);
     }
 
     return {
